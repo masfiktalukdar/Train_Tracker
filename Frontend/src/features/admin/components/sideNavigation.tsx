@@ -1,5 +1,5 @@
 // All the imports
-import {LayoutDashboard, TrainFront, Castle} from "lucide-react";
+import {LayoutDashboard, TrainFront, Castle, TrainTrack} from "lucide-react";
 import BRLogo from "@assets/bangaldesh-railway-logo.png"
 import {NavLink} from "react-router-dom";
 
@@ -9,8 +9,9 @@ import type { SideNavigationProps } from "@app-types/navigation";
 export default function SideNavigation({isOpen, onClose}: SideNavigationProps){
   const navItems = [
       {path: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard},
+      {path: "/admin/routes", label: "Routes", icon: TrainTrack},
+      {path: "/admin/stations", label: "Stations", icon: Castle},
       {path: "/admin/trains", label: "Trains", icon: TrainFront},
-      {path: "/admin/stations", label: "Stations", icon: Castle}
     ];
 
   return (
@@ -27,7 +28,7 @@ export default function SideNavigation({isOpen, onClose}: SideNavigationProps){
           <div className="flex items-center justify-center">
             <img className="h-20 mb-1" src={BRLogo} alt="Train-logo"/>
           </div>
-          <h2 className="text-xl font-bold mb-8 text-center">Bangaldesh Railway</h2>
+          <h2 className="text-lg font-bold mb-8 text-center">Bangaldesh Railway</h2>
           <nav className="space-y-2">
             {navItems.map(item => {
               const Icon = item.icon;
@@ -37,10 +38,10 @@ export default function SideNavigation({isOpen, onClose}: SideNavigationProps){
                   key={item.path}
                   to={item.path}
                   onClick={onClose}
-                  className={({isActive}) => `${isActive ? "bg-blue-600 text-blue": "text-black hover:bg-gray-800 hover:text-white "} flex items-center gap-3 px-4 py-3 rounded-md cursor-pointer transition-colors`}
+                  className={({isActive}) => `${isActive ? "bg-primary-700 text-white": "text-primary-200 hover:bg-primary-800 hover:text-primary-100 "} flex items-center gap-3 px-4 py-2 rounded-md cursor-pointer transition-colors`}
                 >
                   <Icon className="h-5 w-5"/>
-                  <span>{item.label}</span>
+                  <span className="">{item.label}</span>
                 </NavLink>
                 </>
               )

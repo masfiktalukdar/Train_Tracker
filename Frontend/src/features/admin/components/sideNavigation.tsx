@@ -8,10 +8,10 @@ import type { SideNavigationProps } from "@app-types/navigation";
 
 export default function SideNavigation({isOpen, onClose}: SideNavigationProps){
   const navItems = [
-      {path: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard},
-      {path: "/admin/routes", label: "Routes", icon: TrainTrack},
-      {path: "/admin/stations", label: "Stations", icon: Castle},
-      {path: "/admin/trains", label: "Trains", icon: TrainFront},
+      {path: "/admin/dashboard", label: "dashboard", icon: LayoutDashboard},
+      {path: "/admin/routes", label: "routes", icon: TrainTrack},
+      {path: "/admin/stations", label: "stations", icon: Castle},
+      {path: "/admin/trains", label: "trains", icon: TrainFront},
     ];
 
   return (
@@ -41,7 +41,7 @@ export default function SideNavigation({isOpen, onClose}: SideNavigationProps){
                   className={({isActive}) => `${isActive ? "bg-primary-700 text-white": "text-primary-200 hover:bg-primary-800 hover:text-primary-100 "} flex items-center gap-3 px-4 py-2 rounded-md cursor-pointer transition-colors`}
                 >
                   <Icon className="h-5 w-5"/>
-                  <span className="">{item.label}</span>
+                  <span className="capitalize">{item.label}</span>
                 </NavLink>
                 </>
               )

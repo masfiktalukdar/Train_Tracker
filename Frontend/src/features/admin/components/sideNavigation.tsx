@@ -23,7 +23,7 @@ export default function SideNavigation({isOpen, onClose}: SideNavigationProps){
 				></div>
 			)}
 
-			<div className={`lg:static fixed inset-y-0 left-0 z-30 bg-primary-950 text-white transform transition-transform duration-300 ease-in-out ${isOpen ? "translate-x-0" : "-translate-x-0 lg:translate-x-0"}`}>
+			<div className={`lg:static fixed inset-y-0 left-0 z-30 bg-primary-950 text-primary-100 transform transition-transform duration-300 ease-in-out ${isOpen ? "translate-x-0" : "-translate-x-0 lg:translate-x-0"}`}>
         <div className="p-6">
           <div className="flex items-center justify-center">
             <img className="h-20 mb-1" src={BRLogo} alt="Train-logo"/>
@@ -38,7 +38,7 @@ export default function SideNavigation({isOpen, onClose}: SideNavigationProps){
                   key={item.path}
                   to={item.path}
                   onClick={onClose}
-                  className={({isActive}) => `${isActive ? "bg-primary-700 text-white": "text-primary-200 hover:bg-primary-800 hover:text-primary-100 "} flex items-center gap-3 px-4 py-2 rounded-md cursor-pointer transition-colors`}
+                  className={({isActive}) => `${isActive ? "bg-primary-700 text-white font-medium": "text-primary-200 hover:bg-primary-800 hover:text-primary-100 "} flex items-center gap-3 px-4 py-2 rounded-md cursor-pointer transition-colors`}
                 >
                   <Icon className="h-5 w-5"/>
                   <span className="capitalize">{item.label}</span>

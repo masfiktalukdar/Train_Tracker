@@ -1,10 +1,10 @@
 // All the imports
 import { LogOut } from "lucide-react";
 import { useLocation } from "react-router-dom";
-import type { TopNavgiationProp } from "@app-types/navigation";
+// import type { TopNavgiationProp } from "@app-types/navigation";
 import { useEffect, useState } from "react";
 
-export default function TopNav({ onMenuToggle }: TopNavgiationProp) {
+export default function TopNav() {
   const [upperNavContent, setUpperNavContent] = useState("");
   const location = useLocation();
 

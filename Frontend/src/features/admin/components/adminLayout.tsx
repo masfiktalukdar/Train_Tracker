@@ -2,6 +2,7 @@ import { useState } from "react";
 import SideNavigation from "./sideNavigation";
 import TopNav from "./topNav";
 import { Outlet } from "react-router-dom";
+import Footer from "@components/footer"
 
 export default function Layout(){
   const [isSideNavOpen, setIsSideNavOpen] = useState(false);
@@ -16,6 +17,7 @@ export default function Layout(){
 				<TopNav/>
 				<main className="flex-1 overflow-y-auto bg-gray-50">
 					<Outlet />
+          <Footer/>
 				</main>
 			</div>
 		</div>

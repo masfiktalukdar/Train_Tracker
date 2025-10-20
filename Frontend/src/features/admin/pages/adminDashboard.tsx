@@ -84,7 +84,7 @@ export default function AdminDashboard() {
   console.log(formattedChartData)
 
 	return (
-		<div className="min-h-screen w-full px-6 bg-primary-100 inset-y-0">
+		<div className="w-full flex-1 min-h-0 px-6 bg-primary-100 flex flex-col">
 			<div className="row-container flex flex-col gap-5 pt-5">
 				<div className="flex first-row justify-between gap-4">
 					{cartInfoRow1.map((cart) => (
@@ -107,13 +107,12 @@ export default function AdminDashboard() {
 			</div>
 
 			<div className="chart-container mt-8">
-				<span className="font-semibold text-2xl text-primary-900">User regestration trend</span>
+				<span className="font-semibold text-2xl text-primary-900">
+					User regestration trend
+				</span>
 				<ResponsiveContainer width="100%" height={400}>
-					<LineChart data={formattedChartData} margin={{ top: 20, bottom: 20 }}>
-						<CartesianGrid 
-            strokeDasharray="3 3" 
-            vertical={false} 
-            />
+					<LineChart data={formattedChartData} margin={{ top: 30, bottom: 30 }}>
+						<CartesianGrid strokeDasharray="3 3" vertical={false} />
 						<XAxis
 							dataKey="date"
 							tickFormatter={(_, index) => {
@@ -131,9 +130,9 @@ export default function AdminDashboard() {
 							tickLine={false}
 							axisLine={{ stroke: "#064f86" }}
 						/>
-						<Tooltip 
-              formatter={(value)=> [`${value} users`, "Regestration"]}
-            />
+						<Tooltip
+							formatter={(value) => [`${value} users`, "Regestration"]}
+						/>
 						{/* <Legend /> */}
 						<Line
 							dataKey="registrationCount"

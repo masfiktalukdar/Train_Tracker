@@ -17,7 +17,8 @@ import {
 	YAxis,
 } from "recharts";
 import { chartData } from "@/utils/dashboardChartData";
-import type {ChartData} from "@app-types/AdminDashboardTypes"
+import type { ChartData } from "@app-types/AdminDashboardTypes";
+import Footer from "@/components/footer";
 
 export default function AdminDashboard() {
 	const cartInfoRow1 = [
@@ -58,17 +59,15 @@ export default function AdminDashboard() {
 
 	// const organizedChartData = chartData.flatMap((monthBlock) => monthBlock.data);
 
-  const flattenedChartData = chartData.flatMap((monthBlock) =>
+	const flattenedChartData = chartData.flatMap((monthBlock) =>
 		monthBlock.data.map((d) => ({
 			...d,
 			month: monthBlock.month,
 		}))
 	);
 
-  const formattedChartData : ChartData = [];
+	const formattedChartData: ChartData = [];
 	const seenMonths = new Set();
-
-  
 
 	flattenedChartData.forEach((entry) => {
 		const month = entry.date.slice(5, 7); // "09", "10", etc.
@@ -80,12 +79,11 @@ export default function AdminDashboard() {
 		}
 	});
 
-
-  console.log(formattedChartData)
+	console.log(formattedChartData);
 
 	return (
-		<div className="w-full flex-1 min-h-0 px-6 bg-primary-100 flex flex-col">
-			<div className="row-container flex flex-col gap-5 pt-5">
+		<div className="w-full flex-1 min-h-full bg-primary-100 flex flex-col">
+			<div className="row-container flex flex-col gap-5 pt-5 px-6">
 				<div className="flex first-row justify-between gap-4">
 					{cartInfoRow1.map((cart) => (
 						<Cart
@@ -106,12 +104,12 @@ export default function AdminDashboard() {
 				</div>
 			</div>
 
-			<div className="chart-container mt-8">
+			<div className="chart-container mt-8 px-6">
 				<span className="font-semibold text-2xl text-primary-900">
 					User regestration trend
 				</span>
 				<ResponsiveContainer width="100%" height={400}>
-					<LineChart data={formattedChartData} margin={{ top: 30, bottom: 30 }}>
+					<LineChart data={formattedChartData} margin={{ top: 30, bottom: 40 }}>
 						<CartesianGrid strokeDasharray="3 3" vertical={false} />
 						<XAxis
 							dataKey="date"
@@ -143,6 +141,7 @@ export default function AdminDashboard() {
 					</LineChart>
 				</ResponsiveContainer>
 			</div>
+			<Footer />
 		</div>
 	);
 }

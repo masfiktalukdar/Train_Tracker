@@ -35,7 +35,7 @@ export default function SideNavigation({isOpen, onClose}: SideNavigationProps){
               return(
                 <>
                 <NavLink
-                  key={item.path}
+                  key={item.label}
                   to={item.path}
                   onClick={onClose}
                   className={({isActive}) => `${isActive ? "bg-primary-700 text-white font-medium": "text-primary-200 hover:bg-primary-800 hover:text-primary-100 "} flex items-center gap-3 px-4 py-2 rounded-md cursor-pointer transition-colors`}

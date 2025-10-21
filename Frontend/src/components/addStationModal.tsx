@@ -1,11 +1,42 @@
-import { useAdminStationModalToogle } from "@/store/adminStation";
+import { useAdminStationModalToogle, useAdminStationData } from "@/store/adminStation";
+import { useState } from "react";
 
 export default function AddStationModal() {
   const {closeModal} = useAdminStationModalToogle();
+  const {setStationData} = useAdminStationData();
+
+  const [stationName, setStationName] = useState("");
+  const [stationLocation, setStationLocation] = useState("");
+  const [stationLocationURL, setStationLocationURL] = useState("");
+  const [error, setError] = useState<string>();
+
+  const submitHandler = function (e: React.MouseEvent<HTMLButtonElement>) {
+    
+    e.preventDefault();
+    if(!stationName || !stationLocation || !stationLocationURL){
+      setError("All the fields are requred");
+      return;
+    }
+
+    setStationData({
+      stationName,
+      stationLocation, 
+      stationLocationURL
+    })
+
+    setError(undefined);
+    closeModal()
+  };
 
 	return (
-		<div onClick={closeModal} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-			<div onClick={(e) => e.stopPropagation()} className="relative bg-white rounded-lg shadow-lg w-full max-w-md p-6">
+		<div
+			onClick={closeModal}
+			className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+		>
+			<div
+				onClick={(e) => e.stopPropagation()}
+				className="relative bg-white rounded-lg shadow-lg w-full max-w-md p-6"
+			>
 				{/* Close Button */}
 				<button
 					onClick={closeModal}
@@ -27,6 +58,8 @@ export default function AddStationModal() {
 							type="text"
 							placeholder="Enter station name"
 							className="mt-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+							onChange={(e) => setStationName(e.target.value)}
+							value={stationName}
 						/>
 					</label>
 
@@ -36,6 +69,8 @@ export default function AddStationModal() {
 							type="text"
 							placeholder="Enter location"
 							className="mt-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+							onChange={(e) => setStationLocation(e.target.value)}
+							value={stationLocation}
 						/>
 					</label>
 
@@ -45,13 +80,19 @@ export default function AddStationModal() {
 							type="url"
 							placeholder="Paste map URL"
 							className="mt-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+							onChange={(e) => setStationLocationURL(e.target.value)}
+							value={stationLocationURL}
 						/>
 					</label>
+
+          {/* Error Message */}
+          {error && <pre className=" text-red-500">! {error}</pre>}
 
 					{/* Submit Button */}
 					<button
 						type="submit"
 						className="mt-4 bg-primary-800 text-white py-2 px-4 rounded-md hover:bg-primary-700 font-mono"
+            onClick={submitHandler}
 					>
 						Save Station
 					</button>

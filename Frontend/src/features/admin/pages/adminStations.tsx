@@ -1,12 +1,15 @@
 import AddStationModal from "@/components/addStationModal";
 import { ButtonPrimary } from "@/components/button";
 import Footer from "@/components/footer";
-import { useAdminStationModalToogle } from "@/store/adminStation";
+import { useAdminStationModalToogle, useAdminStationData} from "@/store/adminStation";
 
 
 
 export default function AdminStations() {
   const {isModalOpen, openModal} = useAdminStationModalToogle();
+  const {stationList} = useAdminStationData();
+
+  console.log(stationList)
   
 
 	return (

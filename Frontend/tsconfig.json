@@ -15,6 +15,7 @@
       "@hooks/*": ["src/hooks/*"],
       "@lib/*": ["src/lib/*"],
       "@pages/*": ["src/pages/*"],
+      "@store/*": ["src/store/*"],
       "@styles/*": ["src/styles/*"],
       "@app-types/*": ["src/types/*"],
       "@utils/*": ["src/utils/*"],

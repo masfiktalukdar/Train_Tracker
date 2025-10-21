@@ -79,11 +79,10 @@ export default function AdminDashboard() {
 		}
 	});
 
-	console.log(formattedChartData);
-
 	return (
 		<div className="w-full flex-1 min-h-full bg-primary-100 flex flex-col">
-			<div className="row-container flex flex-col gap-5 pt-5 px-6">
+      {/* Top Carts */}
+			<div className="row-container flex flex-col gap-5 mt-5 px-6">
 				<div className="flex first-row justify-between gap-4">
 					{cartInfoRow1.map((cart) => (
 						<Cart
@@ -103,13 +102,13 @@ export default function AdminDashboard() {
 					))}
 				</div>
 			</div>
-
-			<div className="chart-container mt-8 px-6">
+      {/* Chart Area */}
+			<div className="chart-container mt-8 mb-10 px-6">
 				<span className="font-semibold text-2xl text-primary-900">
 					User regestration trend
 				</span>
 				<ResponsiveContainer width="100%" height={400}>
-					<LineChart data={formattedChartData} margin={{ top: 30, bottom: 40 }}>
+					<LineChart data={formattedChartData} margin={{ top: 30}}>
 						<CartesianGrid strokeDasharray="3 3" vertical={false} />
 						<XAxis
 							dataKey="date"
@@ -141,6 +140,7 @@ export default function AdminDashboard() {
 					</LineChart>
 				</ResponsiveContainer>
 			</div>
+      {/* Footer Section */}
 			<Footer />
 		</div>
 	);

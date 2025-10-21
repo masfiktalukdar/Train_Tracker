@@ -1,0 +1,62 @@
+import { useAdminStationModalToogle } from "@/store/adminStation";
+
+export default function AddStationModal() {
+  const {closeModal} = useAdminStationModalToogle();
+
+	return (
+		<div onClick={closeModal} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+			<div onClick={(e) => e.stopPropagation()} className="relative bg-white rounded-lg shadow-lg w-full max-w-md p-6">
+				{/* Close Button */}
+				<button
+					onClick={closeModal}
+					className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 text-xl font-bold"
+				>
+					&times;
+				</button>
+
+				{/* Modal Title */}
+				<h2 className="text-2xl font-semibold text-primary-800 mb-4 font-mono">
+					Add New Station
+				</h2>
+
+				{/* Form Fields */}
+				<form className="flex flex-col gap-4">
+					<label className="flex flex-col font-mono text-sm text-gray-700">
+						Station Name
+						<input
+							type="text"
+							placeholder="Enter station name"
+							className="mt-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+						/>
+					</label>
+
+					<label className="flex flex-col font-mono text-sm text-gray-700">
+						Station Location
+						<input
+							type="text"
+							placeholder="Enter location"
+							className="mt-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+						/>
+					</label>
+
+					<label className="flex flex-col font-mono text-sm text-gray-700">
+						Map URL
+						<input
+							type="url"
+							placeholder="Paste map URL"
+							className="mt-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+						/>
+					</label>
+
+					{/* Submit Button */}
+					<button
+						type="submit"
+						className="mt-4 bg-primary-800 text-white py-2 px-4 rounded-md hover:bg-primary-700 font-mono"
+					>
+						Save Station
+					</button>
+				</form>
+			</div>
+		</div>
+	);
+}

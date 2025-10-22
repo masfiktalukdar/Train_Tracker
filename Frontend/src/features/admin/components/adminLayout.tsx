@@ -1,20 +1,25 @@
-
 import { useState } from "react";
 import SideNavigation from "./sideNavigation";
 import TopNav from "./topNav";
 import { Outlet } from "react-router-dom";
+import { useMenuToogle } from "@/store/adminStationStore";
 
 export default function Layout() {
 	const [isSideNavOpen, setIsSideNavOpen] = useState(false);
 
+  const {setOpenMenuIndex} = useMenuToogle()
+
 	return (
-		<div className="flex h-screen overflow-hidden">
+		<div
+			className="flex h-screen overflow-hidden"
+			onClick={() => setOpenMenuIndex(null)}
+		>
 			<SideNavigation
 				isOpen={isSideNavOpen}
 				onClose={() => setIsSideNavOpen(false)}
 			/>
 			<div className="flex-1 flex flex-col overflow-hidden">
-				<TopNav/>
+				<TopNav />
 				<main className="flex-1 overflow-y-auto bg-gray-50">
 					<Outlet />
 				</main>

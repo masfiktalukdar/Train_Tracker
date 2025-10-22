@@ -1,32 +1,88 @@
-import { useAdminStationModalToogle, useAdminStationData } from "@/store/adminStation";
-import { useState } from "react";
+import {
+	useAdminStationModalToogle,
+	useAdminStationData,
+  // useStationModalData
+} from "@/store/adminStationStore";
+import { useEffect, useState } from "react";
 
-export default function AddStationModal() {
-  const {closeModal} = useAdminStationModalToogle();
-  const {setStationData} = useAdminStationData();
+type operationName = {
+  operation: "add" | "update",
+  editIndex: number | null
+}
 
-  const [stationName, setStationName] = useState("");
-  const [stationLocation, setStationLocation] = useState("");
-  const [stationLocationURL, setStationLocationURL] = useState("");
-  const [error, setError] = useState<string>();
+export default function AdminStationModal({operation, editIndex}: operationName) {
+	const { closeModal } = useAdminStationModalToogle();
+	const { stationList, setStationData, updateStationData } = useAdminStationData();
 
-  const submitHandler = function (e: React.MouseEvent<HTMLButtonElement>) {
-    
+	const [stationName, setStationName] = useState("");
+	const [stationLocation, setStationLocation] = useState("");
+	const [stationLocationURL, setStationLocationURL] = useState("");
+	const [error, setError] = useState<string>();
+
+  // previous data before editing the cart
+  const previousData = (editIndex !== null && typeof(editIndex) === "number") ? stationList?.[editIndex] : undefined;
+
+  useEffect(()=>{
+    // When opened in "update" mode
+    if(operation === "update" && previousData){
+      setStationName(previousData.stationName ?? "");
+      setStationLocation(previousData.stationLocation ?? "");
+      setStationLocationURL(previousData.stationLocationURL ?? "");
+      setError(undefined)
+    }
+
+    // Clearing all the fields when switching to "add" mode
+    if(operation === "add"){
+      setStationName("");
+      setStationLocation("");
+			setStationLocationURL("");
+			setError(undefined);
+    }
+  },[operation, previousData, editIndex])
+
+
+
+  const updateHandler = function(e: React.MouseEvent<HTMLButtonElement>) {
     e.preventDefault();
-    if(!stationName || !stationLocation || !stationLocationURL){
-      setError("All the fields are requred");
+    if(editIndex === null || typeof(editIndex) !== "number"){
+      setError("No station selected to update.");
       return;
     }
 
-    setStationData({
-      stationName,
-      stationLocation, 
-      stationLocationURL
-    })
+    if (!stationName || !stationLocation || !stationLocationURL) {
+			setError("! All the fields are requred");
+			return;
+		}
 
+    const updatedData = {
+      stationName,
+      stationLocation,
+      stationLocationURL
+    }
+
+    updateStationData(editIndex, updatedData);
     setError(undefined);
-    closeModal()
-  };
+    closeModal();
+
+  }
+
+	const submitHandler = function (e: React.MouseEvent<HTMLButtonElement>) {
+		e.preventDefault();
+		if (!stationName || !stationLocation || !stationLocationURL) {
+			setError("All the fields are requred");
+			return;
+		}
+
+		setStationData({
+			stationName,
+			stationLocation,
+			stationLocationURL,
+		});
+
+		setError(undefined);
+		closeModal();
+	};
+
 
 	return (
 		<div
@@ -47,7 +103,7 @@ export default function AddStationModal() {
 
 				{/* Modal Title */}
 				<h2 className="text-2xl font-semibold text-primary-800 mb-4 font-mono">
-					Add New Station
+					{operation === "add" ? "Add New Station" : "Update Station"}
 				</h2>
 
 				{/* Form Fields */}
@@ -85,16 +141,16 @@ export default function AddStationModal() {
 						/>
 					</label>
 
-          {/* Error Message */}
-          {error && <pre className=" text-red-500">! {error}</pre>}
+					{/* Error Message */}
+					{error && <pre className=" text-red-500">! {error}</pre>}
 
 					{/* Submit Button */}
 					<button
 						type="submit"
 						className="mt-4 bg-primary-800 text-white py-2 px-4 rounded-md hover:bg-primary-700 font-mono"
-            onClick={submitHandler}
+						onClick={operation === "add"? submitHandler : updateHandler}
 					>
-						Save Station
+						{operation === "add" ? "Save Station" : "Update Station"}
 					</button>
 				</form>
 			</div>

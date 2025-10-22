@@ -30,12 +30,12 @@ export default function SideNavigation({isOpen, onClose}: SideNavigationProps){
           </div>
           <h2 className="text-lg font-bold mb-8 text-center">Bangaldesh Railway</h2>
           <nav className="space-y-2">
-            {navItems.map(item => {
+            {navItems.map((item, index) => {
               const Icon = item.icon;
               return(
                 <>
                 <NavLink
-                  key={item.label}
+                  key={index}
                   to={item.path}
                   onClick={onClose}
                   className={({isActive}) => `${isActive ? "bg-primary-700 text-white font-medium": "text-primary-200 hover:bg-primary-800 hover:text-primary-100 "} flex items-center gap-3 px-4 py-2 rounded-md cursor-pointer transition-colors`}

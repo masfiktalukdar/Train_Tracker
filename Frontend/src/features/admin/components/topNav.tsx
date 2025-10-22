@@ -34,7 +34,7 @@ export default function TopNav() {
 	return (
 		<div className="bg-white shadow-sm border-b border-gray-200 px-6 py-3 flex items-center justify-between">
 			<div className="flex items-center gap-4">
-				<div className="text-lg text-gray-800 font-semibold">{upperNavContent}</div>
+				<div className="text-lg text-primary-950 font-bold">{upperNavContent}</div>
 			</div>
 			<div className="flex items-center gap-4">
 				<div className="text-base text-gray-600 font-normal">Welcome, Admin</div>

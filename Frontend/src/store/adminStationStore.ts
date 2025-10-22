@@ -14,6 +14,21 @@ export const useAdminStationModalToogle = create<ModalStore>((set)=> ({
   closeModal: () => set(()=> ({isModalOpen: false}))
 }))
 
+// Admin Station Cart action menu handle
+type MenuStore = {
+	openMenuIndex: number | null;
+	setOpenMenuIndex: (idx: number | null) => void;
+	toggleMenuIndex: (idx: number) => void;
+};
+
+export const useMenuToogle = create<MenuStore>((set) => ({
+	openMenuIndex: null,
+	setOpenMenuIndex: (index) => set({ openMenuIndex: index }),
+	toggleMenuIndex: (index) =>
+		set((state) => ({ openMenuIndex: state.openMenuIndex === index ? null : index })),
+}));
+
+
 // Admin Station Data List Handle
 
 type Station = {
@@ -51,3 +66,19 @@ export const useAdminStationData = create<ModalDataStore>()(
 		{ name: "admin-station-state-storage" }
 	)
 );
+
+// Admin Station Modal Operatation State
+
+type operationType = {
+  operation: "add" | "update",
+  setOperationAdd: ()=> void,
+  setOperationUpdate: ()=> void
+}
+
+export const useAdminStationModalOperation = create<operationType>((set)=> ({
+  operation: "add",
+  setOperationAdd: ()=> set({operation: "add"}),
+  setOperationUpdate: ()=> set({operation: "update"})
+}))
+
+

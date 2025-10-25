@@ -1,6 +1,7 @@
 import AdminStationModal from "@/components/addStationModal";
 import { ButtonPrimary } from "@/components/button";
 import StationCart from "@/components/adminStationCart";
+// import NotFoundPage from "@components/notFoundPage"
 import Footer from "@/components/footer";
 import {
 	useAdminStationModalToogle,
@@ -14,9 +15,6 @@ export default function AdminStations() {
 	const { stationList, deleteStationData } = useAdminStationData();
 	const { operation, setOperationAdd, setOperationUpdate } =
 		useAdminStationModalOperation();
-
-    
-
 
 	const [stationCartIndex, setStationCartIndex] = useState<number | null>(null);
 

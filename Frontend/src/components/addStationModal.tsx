@@ -22,6 +22,12 @@ export default function AdminStationModal({operation, editIndex}: operationName)
   // previous data before editing the cart
   const previousData = (editIndex !== null && typeof(editIndex) === "number") ? stationList?.[editIndex] : undefined;
 
+    const same =
+			previousData &&
+			previousData.stationName === stationName &&
+			previousData.stationLocation === stationLocation &&
+			previousData.stationLocationURL === stationLocationURL;
+
   useEffect(()=>{
     // When opened in "update" mode
     if(operation === "update" && previousData){
@@ -40,8 +46,6 @@ export default function AdminStationModal({operation, editIndex}: operationName)
     }
   },[operation, previousData, editIndex])
 
-
-
   const updateHandler = function(e: React.MouseEvent<HTMLButtonElement>) {
     e.preventDefault();
     if(editIndex === null || typeof(editIndex) !== "number"){
@@ -55,15 +59,14 @@ export default function AdminStationModal({operation, editIndex}: operationName)
 		}
 
     const updatedData = {
-      stationName,
-      stationLocation,
-      stationLocationURL
-    }
+			stationName,
+			stationLocation,
+			stationLocationURL,
+		};
 
     updateStationData(editIndex, updatedData);
     setError(undefined);
     closeModal();
-
   }
 
 	const submitHandler = function (e: React.MouseEvent<HTMLButtonElement>) {
@@ -147,7 +150,8 @@ export default function AdminStationModal({operation, editIndex}: operationName)
 					{/* Submit Button */}
 					<button
 						type="submit"
-						className="mt-4 bg-primary-800 text-white py-2 px-4 rounded-md hover:bg-primary-700 font-mono"
+						className="mt-4 bg-primary-800 text-white py-2 px-4 rounded-md hover:bg-primary-700 font-mono disabled:opacity-70"
+            disabled={same}
 						onClick={operation === "add"? submitHandler : updateHandler}
 					>
 						{operation === "add" ? "Save Station" : "Update Station"}

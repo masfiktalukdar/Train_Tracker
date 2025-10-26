@@ -2,6 +2,7 @@
 import { Routes, Route, Navigate } from "react-router-dom"
 import Layout from "@features/admin/components/adminLayout"
 import AdminDashboard from "@features/admin/pages/adminDashboard"
+import AdminStationRoutes from "./features/admin/pages/adminStationRoutes"
 import AdminStations from "@features/admin/pages/adminStations"
 import AdminTrains from "@features/admin/pages/adminTrains"
 
@@ -14,6 +15,7 @@ export default function App() {
         <Route path="admin" element={<Layout/>} >
           <Route index element={<Navigate to="dashboard"/>}/>
           <Route path="dashboard" element={<AdminDashboard/>}/>
+          <Route path="routes" element={<AdminStationRoutes/>}/>
           <Route path="trains" element={<AdminTrains/>}/>
           <Route path="stations" element={<AdminStations/>}/>
         </Route>

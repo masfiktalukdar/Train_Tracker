@@ -2,7 +2,7 @@ import { RoundedBlinkingButton } from "@/components/button"
 import Footer from "@/components/footer"
 
 function blinkingBtnAction(){
-  console.log("everyting is working")
+  console.log(new Date().getTime())
 }
 
 export default function AdminStationRoutes(){

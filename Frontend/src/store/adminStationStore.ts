@@ -80,5 +80,3 @@ export const useAdminStationModalOperation = create<operationType>((set)=> ({
   setOperationAdd: ()=> set({operation: "add"}),
   setOperationUpdate: ()=> set({operation: "update"})
 }))
-
-

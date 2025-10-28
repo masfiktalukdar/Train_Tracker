@@ -28,8 +28,8 @@ type AdminRouteStore = {
 	activeRouteId: string | null;
 
 	// --- ACTIONS ---
+	createNewRoute: () => void;
 	setActiveRoute: (routeId: string) => void;
-	createNewRoute: (name: string) => void;
 	renameRoute: (routeId: string, newName: string) => void;
 	deleteRoute: (routeId: string) => void;
 
@@ -52,6 +52,15 @@ const stationList = useAdminStationData
 		};
 	});
 
+// helper functions
+function formatArray(arr: { id: string; name: string }[]) {
+	const stationsArry = arr.map((s) => s.name);
+
+	if (stationsArry.length === 0) return "";
+	if (stationsArry.length === 1) return stationsArry[0].toLowerCase();
+	return `${stationsArry[0]} - ${stationsArry[stationsArry.length - 1]}`.toLowerCase();
+}
+
 // Defining store behaviour
 export const useAdminStationRoutesData = create<AdminRouteStore>((set) => ({
 	// Routes Initialization
@@ -63,12 +72,15 @@ export const useAdminStationRoutesData = create<AdminRouteStore>((set) => ({
 	// Routes Operations
 	setActiveRoute: (routeID: string) => set({ activeRouteId: routeID }),
 
-	createNewRoute: (name: string) =>
+	createNewRoute: () =>
 		set((state) => {
 			const newId = uuid();
 			const newRoute = {
 				id: newId,
-				name: name,
+				name: state.activeRouteId
+					? formatArray(state.routes[state.activeRouteId].stations)
+					: "",
+
 				stations: [],
 			};
 			return {
@@ -113,57 +125,59 @@ export const useAdminStationRoutesData = create<AdminRouteStore>((set) => ({
 			};
 		}),
 
-	addStationToActiveRoute: (station, insertAfterIndex) => 
-    set(state => {
-      const {activeRouteId, routes} = state;
-      if(!activeRouteId || !routes[activeRouteId]) return state;
+	addStationToActiveRoute: (station, insertAfterIndex) =>
+		set((state) => {
+			const { activeRouteId, routes } = state;
+			if (!activeRouteId || !routes[activeRouteId]) return state;
 
-      const activeRoute = routes[activeRouteId];
-      const newStations = [...activeRoute.stations];
-      newStations.splice(insertAfterIndex + 1, 0, station);
+			const activeRoute = routes[activeRouteId];
+			const newStations = [...activeRoute.stations];
+			newStations.splice(insertAfterIndex + 1, 0, station);
 
-      const updatedRoute = {...activeRoute, stations: newStations}
+			const updatedRoute = { ...activeRoute, stations: newStations };
 
-      return{
-        routes: {
-          ...state.routes,
-          [activeRouteId]: updatedRoute
-        }
-      }
-  }),
+			return {
+				routes: {
+					...state.routes,
+					[activeRouteId]: updatedRoute,
+				},
+			};
+		}),
 
-	removeStationFromActiveRoute: (stationId) => 
-    set(state => {
-      const {activeRouteId, routes} = state;
-      if(!activeRouteId || !routes[activeRouteId]) return state;
+	removeStationFromActiveRoute: (stationId) =>
+		set((state) => {
+			const { activeRouteId, routes } = state;
+			if (!activeRouteId || !routes[activeRouteId]) return state;
 
-      const activeRoute = routes[activeRouteId];
-      const newStations = activeRoute.stations.filter(s => s.id !== stationId);
-      
-      const updatedRoute = {...activeRoute, stations: newStations};
+			const activeRoute = routes[activeRouteId];
+			const newStations = activeRoute.stations.filter(
+				(s) => s.id !== stationId
+			);
 
-      return{
-        routes:{
-          ...state.routes,
-          [activeRouteId]: updatedRoute
-        }
-      }
-  }),
+			const updatedRoute = { ...activeRoute, stations: newStations };
 
-	clearStationsFromActiveRoute: () => 
-    set(state => {
-      const {activeRouteId, routes} = state;
-      if(!activeRouteId || !routes[activeRouteId]) return state;
+			return {
+				routes: {
+					...state.routes,
+					[activeRouteId]: updatedRoute,
+				},
+			};
+		}),
 
-      const updatedRoute = {...routes[activeRouteId], stations: []};
+	clearStationsFromActiveRoute: () =>
+		set((state) => {
+			const { activeRouteId, routes } = state;
+			if (!activeRouteId || !routes[activeRouteId]) return state;
 
-      return{
-        routes: {
-          ...state.routes,
-          [activeRouteId]: updatedRoute
-        }
-      }
-  }),
+			const updatedRoute = { ...routes[activeRouteId], stations: [] };
+
+			return {
+				routes: {
+					...state.routes,
+					[activeRouteId]: updatedRoute,
+				},
+			};
+		}),
 
 	addTrainToRoute: () => {},
 	removeTrain: () => {},

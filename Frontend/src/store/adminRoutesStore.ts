@@ -80,7 +80,6 @@ export const useAdminStationRoutesData = create<AdminRouteStore>((set) => ({
 				name: state.activeRouteId
 					? formatArray(state.routes[state.activeRouteId].stations)
 					: "",
-
 				stations: [],
 			};
 			return {

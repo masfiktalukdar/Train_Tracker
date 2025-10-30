@@ -28,12 +28,17 @@ export default function AdminDataAddDropdown({
 		});
 	}, [availableData, filter]);
 
-	const handleSelect = (data:AvailableData) => {
+	const handleSelect = (data: AvailableData) => {
 		onSelect(data, insertedAfterIndex);
 	};
 
-  return (
-		<div className="absolute z-50 p-4 bg-white rounded-lg shadow-xl top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 border w-80">
+	return (
+		<div
+			className="absolute z-50 p-4 bg-white rounded-lg shadow-xl top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 border w-80"
+			onMouseDown={(e) => e.stopPropagation()}
+			onClick={(e) => e.stopPropagation()}
+			onPointerDown={(e) => e.stopPropagation()}
+		>
 			<div className="flex justify-between items-center mb-2">
 				<h3 className="text-lg font-semibold text-gray-800">Add Station</h3>
 				<button
@@ -46,7 +51,7 @@ export default function AdminDataAddDropdown({
 			<input
 				type="text"
 				placeholder="Search station..."
-				className="w-full p-2 border rounded-md mb-2"
+				className="w-full p-2 border rounded-md mb-2 focus:outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200"
 				value={filter}
 				onChange={(e) => setFilter(e.target.value)}
 			/>

@@ -139,7 +139,7 @@ export default function AdminWhiteBoardBuilder() {
 			onMouseMove={onMouseMove}
 			onMouseUp={onMouseUp}
 			onMouseLeave={onMouseUp}
-			className="w-full h-[50vh] md:h-[600px] relative bg-gray-100 border border-gray-300 rounded-lg overflow-hidden cursor-grab active:cursor-grabbing"
+			className="w-full h-[50vh] md:h-[600px] mb-5 relative bg-gray-100 border border-gray-300 rounded-lg overflow-hidden cursor-grab active:cursor-grabbing"
 		>
 			<svg ref={svgRef} className="w-full h-full select-none">
 				{/* Define the train track pattern (like your image) */}

@@ -53,7 +53,7 @@ export default function AdminStations() {
 			{isModalOpen && (
 				<AdminStationModal operation={operation} editIndex={stationCartIndex} />
 			)}
-			<div className="train-list-container flex flex-col flex-1">
+			<div className="train-list-container flex flex-col flex-1 mb-6">
 				{isEmpty ? (
 					<NotFoundPage />
 				) : (

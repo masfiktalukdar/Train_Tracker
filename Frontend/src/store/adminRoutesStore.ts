@@ -17,10 +17,20 @@ type Route = {
   isAutoNamed?: boolean; // NEW: Track if name is auto-generated
 };
 
-type Train = {
+export type TrainStoppage = {
+  stationId: string;
+  stationName: string;
+  // Store time as a string (e.g., "HH:mm")
+  arrivalTime: string;
+};
+
+export type Train = {
   id: string;
   name: string;
+  code: string;
   routeId: string;
+  direction: 'up' | 'down';
+  stoppages: TrainStoppage[];
 };
 
 type AdminRouteStore = {
@@ -29,6 +39,8 @@ type AdminRouteStore = {
   routes: Record<string, Route>;
   trains: Record<string, Train>;
   activeRouteId: string | null;
+
+
 
   // --- ACTIONS ---
   createNewRoute: () => void;
@@ -39,9 +51,9 @@ type AdminRouteStore = {
   removeStationFromActiveRoute: (stationId: string) => void;
   clearStationsFromActiveRoute: () => void;
 
-  addTrainToRoute: (routeId: string, trainName: string) => void;
+  addTrain: (newTrainData: Omit<Train, 'id'>) => void;
   removeTrain: (trainId: string) => void;
-  updateTrain: (trainId: string, newName: string) => void;
+  updateTrain: (trainId: string, updatedData: Partial<Train>) => void;
 };
 
 // Getting Station Data
@@ -192,7 +204,31 @@ export const useAdminStationRoutesData = create<AdminRouteStore>((set) => ({
       };
     }),
 
-  addTrainToRoute: () => { },
-  removeTrain: () => { },
-  updateTrain: () => { },
+  addTrain: (newTrainData) =>
+    set((state) => {
+      const newId = uuid();
+      const newTrain: Train = {
+        id: newId,
+        ...newTrainData,
+      };
+      return {
+        trains: { ...state.trains, [newId]: newTrain },
+      };
+    }),
+
+  removeTrain: (trainId) =>
+    set((state) => {
+      const newTrains = { ...state.trains };
+      delete newTrains[trainId];
+      return { trains: newTrains };
+    }),
+
+  updateTrain: (trainId, updatedData) =>
+    set((state) => {
+      if (!state.trains[trainId]) return state;
+      const updatedTrain = { ...state.trains[trainId], ...updatedData };
+      return {
+        trains: { ...state.trains, [trainId]: updatedTrain },
+      };
+    }),
 }));

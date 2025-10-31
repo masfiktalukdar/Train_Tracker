@@ -42,7 +42,7 @@ export default function AdminStationRoutes() {
 							))}
 						</select>
 					</div>
-					<h1 className="text-gray-900 text-xl font-semibold mb-2">
+					<h1 className="text-gray-900 text-xl font-semibold mb-6">
 						Admin Route Builder (up)
 					</h1>
 					<AdminWhiteBoardBuilder />

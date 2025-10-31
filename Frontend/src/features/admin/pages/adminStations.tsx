@@ -1,6 +1,6 @@
-import AdminStationModal from "@/components/addStationModal";
+import AdminStationModal from "@/features/admin/components/addStationModal";
 import { ButtonPrimary } from "@/components/button";
-import StationCart from "@/components/adminStationCart";
+import StationCart from "@/features/admin/components/adminStationCart";
 import useAdminSearch from "@/hooks/useAdminSearch";
 import NotFoundPage from "@/components/notFoundPage";
 import Footer from "@/components/footer";

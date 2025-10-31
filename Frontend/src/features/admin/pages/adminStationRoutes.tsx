@@ -1,7 +1,7 @@
 import { useAdminStationRoutesData } from "@store/adminRoutesStore";
 import { ButtonPrimary, RoundedBlinkingButton } from "@/components/button";
 import Footer from "@/components/footer";
-import AdminWhiteBoardBuilder from "@/components/adminWhiteboardBuilder";
+import AdminWhiteBoardBuilder from "@/features/admin/components/adminWhiteboardBuilder";
 
 // helper function
 
@@ -42,7 +42,9 @@ export default function AdminStationRoutes() {
 							))}
 						</select>
 					</div>
-					<h1 className="text-gray-900 text-xl font-semibold mb-2">Admin Route Builder (up)</h1>
+					<h1 className="text-gray-900 text-xl font-semibold mb-2">
+						Admin Route Builder (up)
+					</h1>
 					<AdminWhiteBoardBuilder />
 				</div>
 			)}

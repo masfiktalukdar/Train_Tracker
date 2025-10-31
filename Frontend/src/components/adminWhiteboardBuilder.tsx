@@ -1,13 +1,14 @@
 import { useAdminStationRoutesData } from "@store/adminRoutesStore";
 import { useMemo, useRef, useState } from "react";
 import AdminDataAddDropdown from "./adminDataAddDropdown";
-import { Move, Trash2, ZoomIn, ZoomOut } from "lucide-react";
+import { Move, RotateCw, Trash2, ZoomIn, ZoomOut } from "lucide-react";
 
 export default function AdminWhiteBoardBuilder() {
 	const {
 		activeRouteId,
 		routes,
 		stationList,
+    deleteRoute,
 		addStationToActiveRoute,
 		removeStationFromActiveRoute,
 		clearStationsFromActiveRoute,
@@ -124,9 +125,6 @@ export default function AdminWhiteBoardBuilder() {
 		removeStationFromActiveRoute(stationId);
 	};
 
-	const handleResetRoute = () => {
-		clearStationsFromActiveRoute();
-	};
 
 	// --- Constants for drawing ---
 	const stationWidth = 160;
@@ -361,10 +359,20 @@ export default function AdminWhiteBoardBuilder() {
 				>
 					<Move size={20} />
 				</button>
+				<button
+					onClick={clearStationsFromActiveRoute}
+					className="p-2 bg-white rounded-md shadow border hover:bg-gray-100 transition-colors"
+				>
+					<RotateCw size={20} />
+				</button>
 			</div>
 			<div className="absolute bottom-2 right-2 z-10">
 				<button
-					onClick={handleResetRoute}
+					onClick={() => {
+						if (activeRouteId) {
+							deleteRoute(activeRouteId);
+						}
+					}}
 					className="p-2 px-3 bg-red-500 text-white rounded-md shadow hover:bg-red-600 transition-colors flex items-center gap-1"
 				>
 					<Trash2 size={16} /> Delete Route

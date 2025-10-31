@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 import { X } from "lucide-react";
+import type { Station } from "@/store/adminStationStore";
 
-type AvailableData = { id: string; name: string; routeId?: string };
+type AvailableData = Station;
 
 type AdminDropdown = {
 	onSelect: (
-		station: { id: string; name: string },
+		station: AvailableData,
 		insertedAfterIndex: number
 	) => void;
 	onClose: () => void;
@@ -23,7 +24,7 @@ export default function AdminDataAddDropdown({
 
 	const filteredData = useMemo(() => {
 		return availableData.filter((s) => {
-			const stationFirstName = s.name.split(" ")[0].toLocaleLowerCase();
+			const stationFirstName = s.stationName.split(" ")[0].toLocaleLowerCase();
 			return stationFirstName.includes(filter.toLocaleLowerCase());
 		});
 	}, [availableData, filter]);
@@ -59,11 +60,11 @@ export default function AdminDataAddDropdown({
 				{filteredData.length > 0 ? (
 					filteredData.map((station) => (
 						<div
-							key={station.id}
+							key={station.stationId}
 							className="p-2 hover:bg-blue-100 rounded-md cursor-pointer text-gray-700"
 							onClick={() => handleSelect(station)}
 						>
-							{station.name}
+							{station.stationName}
 						</div>
 					))
 				) : (

@@ -2,6 +2,7 @@ import { useAdminStationRoutesData } from "@store/adminRoutesStore";
 import { useMemo, useRef, useState } from "react";
 import AdminDataAddDropdown from "./adminDataAddDropdown";
 import { Move, RotateCw, Trash2, ZoomIn, ZoomOut } from "lucide-react";
+import type { Station } from "@/store/adminStationStore";
 
 export default function AdminWhiteBoardBuilder() {
 	const {
@@ -14,6 +15,8 @@ export default function AdminWhiteBoardBuilder() {
 		clearStationsFromActiveRoute,
 	} = useAdminStationRoutesData();
 	const activeRoute = activeRouteId ? routes[activeRouteId] : null;
+
+  console.log(routes)
 
 	const [viewport, setViewport] = useState({ x: 50, y: 100, zoom: 1 });
 	const [isPanning, setIsPanning] = useState(false);
@@ -34,8 +37,8 @@ export default function AdminWhiteBoardBuilder() {
 
 	// returning all the available stations after using
 	const availableStations = useMemo(() => {
-		const activeStationIds = new Set(activeRoute?.stations.map((s) => s.id));
-		return stationList.filter((s) => !activeStationIds.has(s.id));
+		const activeStationIds = new Set(activeRoute?.stations.map((s) => s.stationId));
+		return stationList.filter((s) => !activeStationIds.has(s.stationId));
 	}, [activeRoute, stationList]);
 
 	// all the event handler, pen and zoom
@@ -116,7 +119,7 @@ export default function AdminWhiteBoardBuilder() {
 		setShowAddModal({ isOpen: true, insertAfterIndex });
 	};
 
-	const handleAddStation = (station, insertAfterIndex: number) => {
+	const handleAddStation = (station: Station, insertAfterIndex: number) => {
 		addStationToActiveRoute(station, insertAfterIndex);
 		setShowAddModal({ isOpen: false, insertAfterIndex: -1 });
 	};
@@ -270,13 +273,13 @@ export default function AdminWhiteBoardBuilder() {
 									strokeWidth="3.5"
 									strokeLinecap="round"
 								/>
-								<title>Add station after {station.name}</title>
+								<title>Add station after {station.stationName}</title>
 							</g>
 						);
 
 						// --- 3. Render Station Node ---
 						return (
-							<g key={station.id}>
+							<g key={station.stationId}>
 								{trackPath}
 								{addBetweenButton}
 								<g transform={`translate(${stationX}, ${stationNodeY})`}>
@@ -298,7 +301,7 @@ export default function AdminWhiteBoardBuilder() {
 										fill="#000"
 										className="font-semibold select-none pointer-events-none"
 									>
-										{station.name.split(" ")[0]}
+										{station.stationName.split(" ")[0]}
 									</text>
 									{/* Delete button for station */}
 									<g
@@ -306,7 +309,7 @@ export default function AdminWhiteBoardBuilder() {
 										transform={`translate(${stationWidth}, 0)`}
 										onClick={(e) => {
 											e.stopPropagation(); // Don't trigger pan
-											handleRemoveStation(station.id);
+											handleRemoveStation(station.stationId);
 										}}
 									>
 										<circle
@@ -330,7 +333,7 @@ export default function AdminWhiteBoardBuilder() {
 											stroke="#fff"
 											strokeWidth="2.5"
 										/>
-										<title>Remove {station.name}</title>
+										<title>Remove {station.stationName}</title>
 									</g>
 								</g>
 							</g>

@@ -4,8 +4,10 @@ import { useAdminStationData } from "./adminStationStore";
 
 // ==== Types ====
 type Station = {
-  id: string;
-  name: string;
+  stationId: string;
+  stationName: string;
+  stationLocation: string;
+  stationLocationURL: string;
 };
 
 type Route = {
@@ -43,28 +45,29 @@ type AdminRouteStore = {
 };
 
 // Getting Station Data
-const stationList = useAdminStationData
-  .getState()
-  .stationList.map((station, index) => {
-    return {
-      id: `st-${index + 1}`,
-      name: station.stationName.split(" ")[0],
-    };
-  });
+function readInitialStationList() {
+  return useAdminStationData
+    .getState()
+    .stationList.map((station) => ({
+      stationId: station.stationId,
+      stationName: station.stationName,
+      stationLocation: station.stationLocation,
+      stationLocationURL: station.stationLocationURL,
+    }));
+}
 
 // Helper functions
-function formatArray(arr: { id: string; name: string }[]) {
-  const stationsArry = arr.map((s) => s.name);
-
-  if (stationsArry.length === 0) return "Untitled Route";
-  if (stationsArry.length === 1) return stationsArry[0];
-  return `${stationsArry[0]} - ${stationsArry[stationsArry.length - 1]}`;
+function formatArray(stations: Station[]) {
+  if (!stations || stations.length === 0) return "Untitled Route";
+  const names = stations.map((s) => s.stationName.split(" ")[0].toUpperCase());
+  if (names.length === 1) return names[0];
+  return `${names[0]} - ${names[names.length - 1]}`;
 }
 
 // Defining store behaviour
 export const useAdminStationRoutesData = create<AdminRouteStore>((set) => ({
   // Routes Initialization
-  stationList,
+  stationList: readInitialStationList(),
   routes: {},
   trains: {},
   activeRouteId: null,
@@ -112,7 +115,7 @@ export const useAdminStationRoutesData = create<AdminRouteStore>((set) => ({
       return {
         routes: newRoutes,
         trains: newTrains,
-        activeRouteId:newActiveRouteId
+        activeRouteId: newActiveRouteId
       };
     }),
 
@@ -149,7 +152,7 @@ export const useAdminStationRoutesData = create<AdminRouteStore>((set) => ({
 
       const activeRoute = routes[activeRouteId];
       const newStations = activeRoute.stations.filter(
-        (s) => s.id !== stationId
+        (s) => s.stationId !== stationId
       );
 
       const updatedRoute: Route = {

@@ -10,9 +10,6 @@ export default function AdminStationRoutes() {
 	const { activeRouteId, setActiveRoute, createNewRoute, routes } =
 		useAdminStationRoutesData();
 
-	const activeRoute = activeRouteId && routes[activeRouteId];
-	console.log(activeRoute);
-
 	return (
 		<div className="w-full min-h-full bg-primary-100 flex-1 flex flex-col">
 			{!activeRouteId ? (

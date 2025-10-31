@@ -31,7 +31,8 @@ export const useMenuToogle = create<MenuStore>((set) => ({
 
 // Admin Station Data List Handle
 
-type Station = {
+export type Station = {
+  stationId: string;
 	stationName: string;
 	stationLocation: string;
 	stationLocationURL: string;

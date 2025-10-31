@@ -4,6 +4,7 @@ import {
   // useStationModalData
 } from "@/store/adminStationStore";
 import { useEffect, useState } from "react";
+import { v4 as uuid } from "uuid";
 
 type operationName = {
   operation: "add" | "update",
@@ -13,11 +14,14 @@ type operationName = {
 export default function AdminStationModal({operation, editIndex}: operationName) {
 	const { closeModal } = useAdminStationModalToogle();
 	const { stationList, setStationData, updateStationData } = useAdminStationData();
+  console.log(stationList)
 
 	const [stationName, setStationName] = useState("");
 	const [stationLocation, setStationLocation] = useState("");
 	const [stationLocationURL, setStationLocationURL] = useState("");
 	const [error, setError] = useState<string>();
+
+  console.log(stationList)
 
   // previous data before editing the cart
   const previousData = (editIndex !== null && typeof(editIndex) === "number") ? stationList?.[editIndex] : undefined;
@@ -58,7 +62,14 @@ export default function AdminStationModal({operation, editIndex}: operationName)
 			return;
 		}
 
+    const previous = stationList[editIndex];
+		if (!previous) {
+			setError("Station not found.");
+			return;
+		}
+
     const updatedData = {
+			stationId: previous.stationId,
 			stationName,
 			stationLocation,
 			stationLocationURL,
@@ -77,6 +88,7 @@ export default function AdminStationModal({operation, editIndex}: operationName)
 		}
 
 		setStationData({
+			stationId: uuid(),
 			stationName,
 			stationLocation,
 			stationLocationURL,

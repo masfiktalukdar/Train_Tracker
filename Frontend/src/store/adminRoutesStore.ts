@@ -10,7 +10,7 @@ type Station = {
   stationLocationURL: string;
 };
 
-type Route = {
+export type Route = {
   id: string;
   name: string;
   stations: Station[];

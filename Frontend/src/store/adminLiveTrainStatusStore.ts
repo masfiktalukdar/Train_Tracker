@@ -3,7 +3,7 @@ import { v4 as uuid } from "uuid";
 import type { Station } from "./adminStationStore";
 
 // Helper to get today's date as YYYY-MM-DD string
-const getTodayDateString = () => {
+const getTodayDateString = function() {
   return new Date().toISOString().split('T')[0];
 };
 

@@ -5,7 +5,7 @@ import {
 import { Plus, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import TrainCard from "../components/AdminTrainCart";
-import TrainFormDialog from "../components/AdminTrainFormDialoge";
+import TrainFormDialog from "../components/adminTrainFormDialoge";
 import TrainJourneyModal from "../components/adminTrainJourneyModal";
 import Footer from "@/components/footer";
 
@@ -18,6 +18,8 @@ export default function AdminTrainPage() {
 	const [selectedTrain, setSelectedTrain] = useState<Train | null>(null);
 
 	const routeList = Object.values(routes);
+
+  console.log(trains)
 
 	const filteredTrains = useMemo(() => {
 		return Object.values(trains).filter((train) => {
@@ -78,13 +80,13 @@ export default function AdminTrainPage() {
 						<input
 							type="text"
 							placeholder="Search by name or code..."
-							className="w-full p-2 pl-10 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+							className="w-full p-2 pl-10 border rounded-[4px] shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 							value={searchTerm}
 							onChange={(e) => setSearchTerm(e.target.value)}
 						/>
 					</div>
 					<select
-						className="w-full p-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+						className="w-full p-2 border rounded-[4px] shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 						value={selectedRouteId}
 						onChange={(e) => setSelectedRouteId(e.target.value)}
 					>

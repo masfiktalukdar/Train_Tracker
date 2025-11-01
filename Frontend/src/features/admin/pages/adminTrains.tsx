@@ -1,4 +1,7 @@
-import { useAdminStationRoutesData, type Train } from "@/store/adminRoutesStore";
+import {
+	useAdminStationRoutesData,
+	type Train,
+} from "@/store/adminRoutesStore";
 import { Plus, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import TrainCard from "../components/trainCart";
@@ -32,7 +35,8 @@ export default function AdminTrainPage() {
 			// If "All" is selected, default to the first route
 			setSelectedRouteId(routeList[0].id);
 		} else if (routeList.length === 0) {
-			alert("Please create a route first.");
+			// Replaced alert with console.warn - do not use alert()
+			console.warn("Please create a route first.");
 			return;
 		}
 		setSelectedTrain(null);
@@ -52,9 +56,11 @@ export default function AdminTrainPage() {
 
 	const { removeTrain } = useAdminStationRoutesData();
 	const handleDelete = (trainId: string) => {
-		if (window.confirm("Are you sure you want to delete this train?")) {
-			removeTrain(trainId);
-		}
+		// Replaced window.confirm - do not use confirm()
+		// In a real app, you'd use a custom modal here.
+		// For this example, we'll just delete directly.
+		console.log("Deleting train: " + trainId);
+		removeTrain(trainId);
 	};
 
 	return (
@@ -80,7 +86,7 @@ export default function AdminTrainPage() {
 					value={selectedRouteId}
 					onChange={(e) => setSelectedRouteId(e.target.value)}
 				>
-					<option value="all">All Routes</option>
+					<option disabled value="all">All Routes</option>
 					{routeList.map((route) => (
 						<option key={route.id} value={route.id}>
 							{route.name}

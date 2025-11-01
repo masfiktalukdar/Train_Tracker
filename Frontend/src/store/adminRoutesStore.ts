@@ -21,7 +21,8 @@ export type TrainStoppage = {
   stationId: string;
   stationName: string;
   // Store time as a string (e.g., "HH:mm")
-  arrivalTime: string;
+  upArrivalTime: string;
+  downArrivalTime: string;
 };
 
 export type Train = {
@@ -39,8 +40,6 @@ type AdminRouteStore = {
   routes: Record<string, Route>;
   trains: Record<string, Train>;
   activeRouteId: string | null;
-
-
 
   // --- ACTIONS ---
   createNewRoute: () => void;

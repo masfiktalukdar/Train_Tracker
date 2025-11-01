@@ -16,8 +16,6 @@ export default function AdminWhiteBoardBuilder() {
 	} = useAdminStationRoutesData();
 	const activeRoute = activeRouteId ? routes[activeRouteId] : null;
 
-  console.log(routes)
-
 	const [viewport, setViewport] = useState({ x: 50, y: 100, zoom: 1 });
 	const [isPanning, setIsPanning] = useState(false);
 

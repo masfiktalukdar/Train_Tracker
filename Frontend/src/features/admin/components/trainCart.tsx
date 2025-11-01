@@ -1,8 +1,16 @@
-import { useAdminStationRoutesData } from "@/store/adminRoutesStore";
+import { useAdminStationRoutesData, type Train } from "@/store/adminRoutesStore";
 import { Edit, MoreVertical, TrainFront, Trash2 } from "lucide-react";
 import { useState } from "react";
 
-export default function TrainCard({ train, onEdit, onDelete, onViewJourney }) {
+type TrainCardProps = {
+	train: Train;
+	onEdit: (train: Train) => void;
+	onDelete: (trainId: string) => void;
+	onViewJourney: (train: Train) => void;
+};
+
+
+export default function TrainCard({ train, onEdit, onDelete, onViewJourney }:TrainCardProps) {
 	const [menuOpen, setMenuOpen] = useState(false);
 	const { routes } = useAdminStationRoutesData();
 	const routeName = routes[train.routeId]?.name || "Unknown Route";

@@ -1,9 +1,20 @@
-import { useAdminStationRoutesData, type TrainStoppage } from "@/store/adminRoutesStore";
+import {
+	useAdminStationRoutesData,
+	type Train,
+	type TrainStoppage,
+} from "@/store/adminRoutesStore";
 import type { Station } from "@/store/adminStationStore";
-import { Clock, X } from "lucide-react";
+import { ArrowDown, ArrowUp, X } from "lucide-react";
 import { useState } from "react";
 
-export default function TrainFormDialog({ trainToEdit, routeId, onClose }) {
+type TrainFormDialogProps = {
+	trainToEdit: Train | null;
+	routeId: string;
+	onClose: () => void;
+};
+
+
+export default function TrainFormDialog({ trainToEdit, routeId, onClose }:TrainFormDialogProps) {
 	const { routes, addTrain, updateTrain } = useAdminStationRoutesData();
 	const routeStations = routes[routeId]?.stations || [];
 
@@ -16,36 +27,59 @@ export default function TrainFormDialog({ trainToEdit, routeId, onClose }) {
 		trainToEdit?.stoppages || []
 	);
 
+	// *** CHANGED *** (Issue: Add return lap time)
 	const handleStoppageToggle = (station: Station) => {
 		const isStoppage = stoppages.some((s) => s.stationId === station.stationId);
 		if (isStoppage) {
 			// Remove it
 			setStoppages(stoppages.filter((s) => s.stationId !== station.stationId));
 		} else {
-			// Add it with a default time
-			setStoppages([
-				...stoppages,
-				{
-					stationId: station.stationId,
-					stationName: station.stationName,
-					arrivalTime: "00:00",
-				},
-			]);
+			// Add it with default times, sorted by route order
+			const newStoppage = {
+				stationId: station.stationId,
+				stationName: station.stationName,
+				upArrivalTime: "00:00",
+				downArrivalTime: "00:00",
+			};
+			// Insert it in the correct route order
+			const newStoppages = [...stoppages, newStoppage];
+			newStoppages.sort((a, b) => {
+				const indexA = routeStations.findIndex(
+					(s) => s.stationId === a.stationId
+				);
+				const indexB = routeStations.findIndex(
+					(s) => s.stationId === b.stationId
+				);
+				return indexA - indexB;
+			});
+			setStoppages(newStoppages);
 		}
 	};
 
-	const handleTimeChange = (stationId: string, arrivalTime: string) => {
+	// *** CHANGED *** (Issue: Add return lap time)
+	const handleTimeChange = (
+		stationId: string,
+		time: string,
+		direction: "up" | "down"
+	) => {
 		setStoppages(
-			stoppages.map((s) =>
-				s.stationId === stationId ? { ...s, arrivalTime } : s
-			)
+			stoppages.map((s) => {
+				if (s.stationId !== stationId) return s;
+				if (direction === "up") {
+					return { ...s, upArrivalTime: time };
+				} else {
+					return { ...s, downArrivalTime: time };
+				}
+			})
 		);
 	};
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
 		if (!name || !code || stoppages.length === 0) {
-			alert("Please fill in all fields and select at least one stoppage.");
+			console.warn(
+				"Please fill in all fields and select at least one stoppage."
+			);
 			return;
 		}
 
@@ -116,7 +150,7 @@ export default function TrainFormDialog({ trainToEdit, routeId, onClose }) {
 					</div>
 					<div>
 						<label className="block text-sm font-medium text-gray-700 mb-1">
-							Direction
+							Primary Direction
 						</label>
 						<div className="flex gap-4">
 							<label className="flex items-center gap-2">
@@ -145,6 +179,9 @@ export default function TrainFormDialog({ trainToEdit, routeId, onClose }) {
 						<label className="block text-sm font-medium text-gray-700 mb-2">
 							Stoppages & Times
 						</label>
+						<p className="text-xs text-gray-500 mb-2">
+							Select the stations this train will stop at, in their route order.
+						</p>
 						<div className="border rounded-lg max-h-64 overflow-y-auto">
 							{routeStations.length > 0 ? (
 								routeStations.map((station) => {
@@ -155,9 +192,9 @@ export default function TrainFormDialog({ trainToEdit, routeId, onClose }) {
 									return (
 										<div
 											key={station.stationId}
-											className="flex items-center justify-between p-3 border-b last:border-b-0"
+											className="flex flex-col sm:flex-row items-center justify-between p-3 border-b last:border-b-0"
 										>
-											<label className="flex items-center gap-3">
+											<label className="flex items-center gap-3 w-full sm:w-auto mb-2 sm:mb-0">
 												<input
 													type="checkbox"
 													className="w-4 h-4"
@@ -166,19 +203,46 @@ export default function TrainFormDialog({ trainToEdit, routeId, onClose }) {
 												/>
 												{station.stationName}
 											</label>
-											<div className="flex items-center gap-2">
-												<Clock
-													className={`w-4 h-4 ${isStoppage ? "text-blue-500" : "text-gray-300"}`}
-												/>
-												<input
-													type="time"
-													className="p-1 border rounded-md disabled:bg-gray-100 disabled:cursor-not-allowed"
-													value={stoppage?.arrivalTime || "00:00"}
-													disabled={!isStoppage}
-													onChange={(e) =>
-														handleTimeChange(station.stationId, e.target.value)
-													}
-												/>
+											{/* *** CHANGED *** (Issue: Add return lap time) */}
+											<div className="flex items-center gap-4">
+												{/* Up Time */}
+												<label className="flex items-center gap-2 text-sm">
+													<ArrowUp
+														className={`w-4 h-4 ${isStoppage ? "text-green-500" : "text-gray-300"}`}
+													/>
+													<input
+														type="time"
+														className="p-1 border rounded-md disabled:bg-gray-100 disabled:cursor-not-allowed"
+														value={stoppage?.upArrivalTime || "00:00"}
+														disabled={!isStoppage}
+														onChange={(e) =>
+															handleTimeChange(
+																station.stationId,
+																e.target.value,
+																"up"
+															)
+														}
+													/>
+												</label>
+												{/* Down Time */}
+												<label className="flex items-center gap-2 text-sm">
+													<ArrowDown
+														className={`w-4 h-4 ${isStoppage ? "text-red-500" : "text-gray-300"}`}
+													/>
+													<input
+														type="time"
+														className="p-1 border rounded-md disabled:bg-gray-100 disabled:cursor-not-allowed"
+														value={stoppage?.downArrivalTime || "00:00"}
+														disabled={!isStoppage}
+														onChange={(e) =>
+															handleTimeChange(
+																station.stationId,
+																e.target.value,
+																"down"
+															)
+														}
+													/>
+												</label>
 											</div>
 										</div>
 									);

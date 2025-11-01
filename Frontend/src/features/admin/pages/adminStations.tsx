@@ -38,7 +38,7 @@ export default function AdminStations() {
 	return (
 		<div className="w-full flex-1 min-h-full bg-primary-100 flex flex-col">
 			{/* Header add station and search section */}
-			<div className="flex gap-4 ml-auto mt-5 mx-6 mb-6">
+			<div className="flex gap-4 ml-auto mt-5 px-6 mb-6">
 				<ButtonPrimary onClick={stationAddModalOpener}>
 					Add new station
 				</ButtonPrimary>
@@ -53,7 +53,7 @@ export default function AdminStations() {
 			{isModalOpen && (
 				<AdminStationModal operation={operation} editIndex={stationCartIndex} />
 			)}
-			<div className="train-list-container flex flex-col flex-1 mb-6">
+			<div className="train-list-container flex flex-col flex-1 mb-6 px-6">
 				{isEmpty ? (
 					<NotFoundPage />
 				) : (

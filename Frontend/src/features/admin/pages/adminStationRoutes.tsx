@@ -19,7 +19,7 @@ export default function AdminStationRoutes() {
 				<div className="mx-6">
 					<div className="flex gap-4 justify-end mt-5 mb-6">
 						<ButtonPrimary onClick={createNewRoute}>
-							Add new station
+							Add new route
 						</ButtonPrimary>
 						<select
 							name="route-select"

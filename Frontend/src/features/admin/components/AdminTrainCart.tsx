@@ -16,7 +16,7 @@ export default function TrainCard({ train, onEdit, onDelete, onViewJourney }:Tra
 	const routeName = routes[train.routeId]?.name || "Unknown Route";
 
 	return (
-		<div className="bg-white rounded-lg shadow-md border overflow-hidden">
+		<div className="bg-white rounded-lg shadow-md border">
 			<div className="p-4 flex items-center justify-between">
 				<div className="flex items-center gap-4">
 					<div

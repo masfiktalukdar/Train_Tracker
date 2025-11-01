@@ -1,6 +1,6 @@
 import { useState } from "react";
-import SideNavigation from "./sideNavigation";
-import TopNav from "./topNav";
+import SideNavigation from "./adminSideNavigation";
+import TopNav from "./adminTopNav";
 import { Outlet } from "react-router-dom";
 import { useMenuToogle } from "@/store/adminStationStore";
 

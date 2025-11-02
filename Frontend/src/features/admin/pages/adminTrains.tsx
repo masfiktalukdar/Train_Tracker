@@ -33,9 +33,6 @@ export default function AdminTrainPage() {
 	const { data: trains = [], isLoading: isLoadingTrains } = useQuery<
 		ApiTrain[]
 	>({
-		// --- THIS IS THE BUG ---
-		// queryKey: ["routes"],
-		// --- THIS IS THE FIX ---
 		queryKey: ["trains"],
 		queryFn: getTrains,
 	});
@@ -59,11 +56,10 @@ export default function AdminTrainPage() {
 	);
 
 	const filteredTrains = useMemo(() => {
-		// FIX: Use the 'routeId' from my previous fix
 		return trains.filter((train) => {
 			const routeMatch =
 				selectedRouteId === "all" ||
-				train.routeId.toString() === selectedRouteId; // Use camelCase train.routeId
+				train.routeId.toString() === selectedRouteId;
 			const searchMatch =
 				train.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
 				train.code.toLowerCase().includes(searchTerm.toLowerCase());
@@ -73,10 +69,15 @@ export default function AdminTrainPage() {
 
 	// --- Handlers ---
 	const handleOpenAdd = () => {
+		// FIX: This 'if' block was causing a state race condition.
+		// We remove it entirely. The logic to pick the first route
+		// is already handled by 'selectedRouteForModal'.
+		/*
 		if (selectedRouteId === "all" && routeList.length > 0) {
-			// If "All" is selected, default to the first route
 			setSelectedRouteId(routeList[0].id.toString());
-		} else if (routeList.length === 0) {
+		} else 
+		*/
+		if (routeList.length === 0) {
 			console.warn("Please create a route first.");
 			return;
 		}
@@ -96,18 +97,23 @@ export default function AdminTrainPage() {
 	};
 
 	const handleDelete = (trainId: number) => {
+		// Re-enabling confirm() as it's the intended behavior for now.
+		// A custom modal is better, but this is functional.
 		if (confirm("Are you sure you want to delete this train?")) {
 			deleteTrainMutation.mutate(trainId);
 		}
 	};
 
+	// This variable now correctly handles all cases without a race condition.
+	// 1. If "all" is selected -> use first route ID.
+	// 2. If a specific route is selected -> use that route ID.
 	const selectedRouteForModal =
 		selectedRouteId === "all" && routeList.length > 0
 			? routeList[0].id
 			: parseInt(selectedRouteId, 10);
 
 	const selectedRouteForJourney = selectedTrain
-		? routesMap.get(selectedTrain.routeId) // Use camelCase selectedTrain.routeId
+		? routesMap.get(selectedTrain.routeId)
 		: undefined;
 
 	return (
@@ -164,7 +170,7 @@ export default function AdminTrainPage() {
 								<TrainCard
 									key={train.id}
 									train={train}
-									route={routesMap.get(train.routeId)} // Use camelCase train.routeId
+									route={routesMap.get(train.routeId)}
 									onEdit={handleOpenEdit}
 									onDelete={handleDelete}
 									onViewJourney={handleOpenJourney}

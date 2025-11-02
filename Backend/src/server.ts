@@ -3,9 +3,9 @@ import env from "dotenv";
 import cors from "cors"; 
 
 // Import all your route handlers
-import authenticationRoutes from "./routes/authenticationRoutes";
-import adminRoutes from "./routes/adminRoutes";
-import publicRoutes from "./routes/publicRoutes";
+import authenticationRoutes from "./routes/authenticationRoutes.ts";
+import adminRoutes from "./routes/adminRoutes.ts";
+import publicRoutes from "./routes/publicRoutes.ts";
 
 env.config();
 

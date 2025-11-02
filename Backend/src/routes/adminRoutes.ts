@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import supabase from "../config/supabaseClient";
-import adminAuth from '../middleware/adminAuth.js';
+import supabase from "../config/supabaseClient.ts";
+import adminAuth from '../middleware/adminAuth.ts';
 const router = Router();
 
 router.use(adminAuth);

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import supabase from "../config/supabaseClient";
+import supabase from "../config/supabaseClient.ts";
 
 const router = Router();
 

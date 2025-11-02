@@ -33,6 +33,9 @@ export default function AdminTrainPage() {
 	const { data: trains = [], isLoading: isLoadingTrains } = useQuery<
 		ApiTrain[]
 	>({
+		// --- THIS IS THE BUG ---
+		// queryKey: ["routes"],
+		// --- THIS IS THE FIX ---
 		queryKey: ["trains"],
 		queryFn: getTrains,
 	});
@@ -56,10 +59,11 @@ export default function AdminTrainPage() {
 	);
 
 	const filteredTrains = useMemo(() => {
+		// FIX: Use the 'routeId' from my previous fix
 		return trains.filter((train) => {
 			const routeMatch =
 				selectedRouteId === "all" ||
-				train.route_id.toString() === selectedRouteId;
+				train.routeId.toString() === selectedRouteId; // Use camelCase train.routeId
 			const searchMatch =
 				train.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
 				train.code.toLowerCase().includes(searchTerm.toLowerCase());
@@ -81,7 +85,7 @@ export default function AdminTrainPage() {
 	};
 
 	const handleOpenEdit = (train: ApiTrain) => {
-		setSelectedRouteId(train.route_id.toString()); // Ensure the correct route is selected
+		setSelectedRouteId(train.routeId.toString()); // Ensure the correct route is selected
 		setSelectedTrain(train);
 		setIsFormOpen(true);
 	};
@@ -103,7 +107,7 @@ export default function AdminTrainPage() {
 			: parseInt(selectedRouteId, 10);
 
 	const selectedRouteForJourney = selectedTrain
-		? routesMap.get(selectedTrain.route_id)
+		? routesMap.get(selectedTrain.routeId) // Use camelCase selectedTrain.routeId
 		: undefined;
 
 	return (
@@ -160,7 +164,7 @@ export default function AdminTrainPage() {
 								<TrainCard
 									key={train.id}
 									train={train}
-									route={routesMap.get(train.route_id)}
+									route={routesMap.get(train.routeId)} // Use camelCase train.routeId
 									onEdit={handleOpenEdit}
 									onDelete={handleDelete}
 									onViewJourney={handleOpenJourney}

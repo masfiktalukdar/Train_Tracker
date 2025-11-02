@@ -1,8 +1,8 @@
-import apiClient from '@/lib/apiClient';
+import apiClient from "@/lib/apiClient";
 
 // Helper to get today's date as YYYY-MM-DD string
 export const getTodayDateString = (): string => {
-  return new Date().toISOString().split('T')[0];
+  return new Date().toISOString().split("T")[0];
 };
 
 export type StationArrivalRecord = {
@@ -22,7 +22,9 @@ export type DailyTrainStatus = {
 };
 
 // This is the payload for the 'upsert' operation
-export type UpdateStatusPayload = Omit<DailyTrainStatus, 'train_id'> & { train_id: number };
+export type UpdateStatusPayload = Omit<DailyTrainStatus, "train_id"> & {
+  train_id: number;
+};
 
 /**
  * Fetches the daily status for a specific train and date.
@@ -33,8 +35,10 @@ export const getDailyStatus = async (
   date: string
 ): Promise<DailyTrainStatus | null> => {
   try {
-    const { data } = await apiClient.get(`/admin/status/${trainId}?date=${date}`);
-    // The backend returns null/empty if no record, which is fine
+    // FIX: Hit the /public/status route instead of /admin/status
+    const { data } = await apiClient.get(
+      `/public/status/${trainId}?date=${date}`
+    );
     return data;
   } catch (error) {
     console.error("Failed to fetch status", error);
@@ -49,6 +53,6 @@ export const getDailyStatus = async (
 export const updateDailyStatus = async (
   payload: UpdateStatusPayload
 ): Promise<DailyTrainStatus> => {
-  const { data } = await apiClient.post('/admin/status/update', payload);
+  const { data } = await apiClient.post("/admin/status/update", payload);
   return data;
 };

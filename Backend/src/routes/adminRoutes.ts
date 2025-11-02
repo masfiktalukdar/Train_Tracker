@@ -1,13 +1,14 @@
-import express from 'express';
+import { Router } from 'express';
+import type { Request, Response } from 'express';
 import supabase from "../config/supabaseClient";
-import adminAuth from "../middleware/adminAuth";
-const router = express.Router();
+import adminAuth from '../middleware/adminAuth.js';
+const router = Router();
 
 router.use(adminAuth);
 
 // === STATIONS API ===
 
-router.post('/stations', async (req, res) => {
+router.post('/stations', async (req: Request, res: Response) => {
   const { stationId, stationName, stationLocation, stationLocationURL } = req.body;
   const { data, error } = await supabase
     .from('stations')
@@ -24,7 +25,7 @@ router.post('/stations', async (req, res) => {
   res.status(201).json(data);
 });
 
-router.put('/stations/:id', async (req, res) => {
+router.put('/stations/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
   const { station_name, station_location, station_location_url } = req.body;
 
@@ -43,7 +44,7 @@ router.put('/stations/:id', async (req, res) => {
   res.json(data);
 });
 
-router.delete('/stations/:id', async (req, res) => {
+router.delete('/stations/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
   const { error } = await supabase.from('stations').delete().eq('id', id);
 
@@ -54,7 +55,7 @@ router.delete('/stations/:id', async (req, res) => {
 
 // === ROUTES API ===
 
-router.post('/routes', async (req, res) => {
+router.post('/routes', async (req: Request, res: Response) => {
   const { name, stations } = req.body;
   const { data, error } = await supabase
     .from('routes')
@@ -69,7 +70,7 @@ router.post('/routes', async (req, res) => {
   res.status(201).json(data);
 });
 
-router.put('/routes/:id', async (req, res) => {
+router.put('/routes/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
   const { name, stations } = req.body;
 
@@ -84,7 +85,7 @@ router.put('/routes/:id', async (req, res) => {
   res.json(data);
 });
 
-router.delete('/routes/:id', async (req, res) => {
+router.delete('/routes/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
   const { error } = await supabase.from('routes').delete().eq('id', id);
   if (error) return res.status(500).json({ error: error.message });
@@ -94,7 +95,7 @@ router.delete('/routes/:id', async (req, res) => {
 
 // === TRAINS API ===
 
-router.post('/trains', async (req, res) => {
+router.post('/trains', async (req: Request, res: Response) => {
   const { name, code, direction, route_id, stoppages } = req.body;
 
   const { data, error } = await supabase
@@ -107,7 +108,7 @@ router.post('/trains', async (req, res) => {
   res.status(201).json(data);
 });
 
-router.put('/trains/:id', async (req, res) => {
+router.put('/trains/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
   const { name, code, direction, route_id, stoppages } = req.body;
 
@@ -122,7 +123,7 @@ router.put('/trains/:id', async (req, res) => {
   res.json(data);
 });
 
-router.delete('/trains/:id', async (req, res) => {
+router.delete('/trains/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
   const { error } = await supabase.from('trains').delete().eq('id', id);
 
@@ -133,7 +134,7 @@ router.delete('/trains/:id', async (req, res) => {
 
 // === LIVE STATUS API ===
 
-router.post('/status/update', async (req, res) => {
+router.post('/status/update', async (req: Request, res: Response) => {
   const { train_id, date, lap_completed, arrivals, last_completed_station_id } = req.body;
 
   // The frontend sends a JSON array for 'arrivals'.
@@ -176,5 +177,4 @@ router.post('/status/update', async (req, res) => {
 });
 
 
-module.exports = router;
-
+export default router;

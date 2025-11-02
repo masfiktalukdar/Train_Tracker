@@ -76,9 +76,9 @@ export default function TrainFormDialog({ trainToEdit, routeId, onClose }:TrainF
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
-		if (!name || !code || stoppages.length === 0) {
-			console.warn(
-				"Please fill in all fields and select at least one stoppage."
+		if (!name || !code || stoppages.length <=1) {
+			window.alert(
+				"Please fill in all fields and select at least two stoppage."
 			);
 			return;
 		}

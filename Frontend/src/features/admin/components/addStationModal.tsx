@@ -21,8 +21,6 @@ export default function AdminStationModal({operation, editIndex}: operationName)
 	const [stationLocationURL, setStationLocationURL] = useState("");
 	const [error, setError] = useState<string>();
 
-  console.log(stationList)
-
   // previous data before editing the cart
   const previousData = (editIndex !== null && typeof(editIndex) === "number") ? stationList?.[editIndex] : undefined;
 

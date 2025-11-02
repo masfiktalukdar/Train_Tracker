@@ -1,10 +1,17 @@
-import { useTrainStatusStore } from "@/store/adminLiveTrainStatusStore";
+import React, { useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { v4 as uuid } from "uuid";
+import type { ApiRoute } from "@/features/admin/api/routesApi";
+import type { ApiTrain } from "@/features/admin/api/trainsApi";
+import type { Station } from "@/types/dataModels";
 import {
-	useAdminStationRoutesData,
-	type Route,
-	type Train,
-} from "@/store/adminRoutesStore";
-import type { Station } from "@/store/adminStationStore";
+	getDailyStatus,
+	updateDailyStatus,
+	getTodayDateString,
+	UpdateStatusPayload,
+	DailyTrainStatus,
+	StationArrivalRecord,
+} from "@/features/admin/api/statusApi";
 import {
 	ArrowRight,
 	CheckCircle,
@@ -12,141 +19,178 @@ import {
 	Flag,
 	TrainFront,
 	X,
+	Loader2,
 } from "lucide-react";
-import React, { useMemo } from "react";
 
 type TrainJourneyModalProps = {
-	train: Train;
+	train: ApiTrain;
+	route: ApiRoute;
 	onClose: () => void;
 };
 
-// *** FIXED *** (Issue 1: Only show train's actual stoppages)
-// REVISED Helper: Gets the FULL ROUND-TRIP journey *for the train's stoppages only*
-function getFullRoundTripJourney(route: Route, train: Train) {
+// This helper is still valid, as it just processes props
+function getFullRoundTripJourney(route: ApiRoute, train: ApiTrain) {
 	const routeStations = route.stations;
 	if (!routeStations || routeStations.length === 0) return [];
 
-	// Create a map of the train's *actual* stoppages
 	const stoppageMap = new Map(train.stoppages.map((s) => [s.stationId, s]));
 
-	// 1. Filter route stations to ONLY include actual stoppages for this train
 	const actualStoppagesOnRoute = routeStations.filter((station) =>
 		stoppageMap.has(station.stationId)
 	);
 
 	if (actualStoppagesOnRoute.length === 0) return [];
 
-	// 2. Create Leg 1 (A -> D) based on direction
 	const firstLegStations =
 		train.direction === "up"
 			? [...actualStoppagesOnRoute]
 			: [...actualStoppagesOnRoute].reverse();
 
-	// 3. Create Leg 2 (D -> A, skipping the first D)
 	const secondLegStations = [...firstLegStations].reverse().slice(1);
 
-	// 4. Full path: (A -> D) + (C -> A)
 	const fullJourneyPath = [...firstLegStations, ...secondLegStations];
 
-	// *** CHANGED *** (Issue: Add return lap time)
-	// 5. Map to final format
 	return fullJourneyPath.map((station, index) => {
-		const stoppageData = stoppageMap.get(station.stationId)!; // We know it exists
-
+		const stoppageData = stoppageMap.get(station.stationId)!;
 		const isFirstLeg = index < firstLegStations.length;
-		const trainsPrimaryDirection = train.direction; // 'up' or 'down'
+		const trainsPrimaryDirection = train.direction;
 
 		let defaultTime;
 		if (isFirstLeg) {
-			// This is the primary leg
 			defaultTime =
 				trainsPrimaryDirection === "up"
 					? stoppageData.upArrivalTime
 					: stoppageData.downArrivalTime;
 		} else {
-			// This is the return leg
 			defaultTime =
 				trainsPrimaryDirection === "up"
-					? stoppageData.downArrivalTime // Primary was 'up', so return is 'down'
-					: stoppageData.upArrivalTime; // Primary was 'down', so return is 'up'
+					? stoppageData.downArrivalTime
+					: stoppageData.upArrivalTime;
 		}
 
 		return {
-			...station, // stationId, stationName, etc.
-			journeyIndex: index, // Index within this *stoppage* journey
-			isStoppage: true, // It's always a stoppage now
-			defaultTime: defaultTime, // Get the *correct* time
+			...station,
+			journeyIndex: index,
+			isStoppage: true,
+			defaultTime: defaultTime,
 		};
 	});
 }
 
 export default function TrainJourneyModal({
 	train,
+	route,
 	onClose,
 }: TrainJourneyModalProps) {
-	const { routes } = useAdminStationRoutesData();
-	const { getTodaysStatus, markStationAsArrived, undoArrival, completeLap } =
-		useTrainStatusStore();
+	const queryClient = useQueryClient();
+	const today = getTodayDateString();
 
-	const route = routes[train.routeId];
+	// --- Data Fetching ---
+	const queryKey = ["dailyStatus", train.id, today];
 
-	// *** FIXED *** (Issue 2: Calculate turnaround point correctly)
-	// We need to know the length of the *first leg* of stoppages
-	const firstLegLength = useMemo(() => {
-		const stoppageMap = new Map(train.stoppages.map((s) => [s.stationId, s]));
-		const actualStoppagesOnRoute = route.stations.filter((station) =>
-			stoppageMap.has(station.stationId)
-		);
-		return actualStoppagesOnRoute.length;
-	}, [route, train]);
+	const { data: todaysStatus, isLoading } = useQuery<DailyTrainStatus | null>({
+		queryKey: queryKey,
+		queryFn: () => getDailyStatus(train.id, today),
+	});
 
-	// Get the journey (now only stoppages)
+	// --- Mutations ---
+	const statusUpdateMutation = useMutation({
+		mutationFn: updateDailyStatus,
+		onSuccess: (updatedStatus) => {
+			// Optimistically update the cache
+			queryClient.setQueryData(queryKey, updatedStatus);
+		},
+		onError: (err) => {
+			console.error("Failed to update status:", err);
+			// Refetch to revert optimistic update
+			queryClient.invalidateQueries({ queryKey: queryKey });
+		},
+	});
+
+	// --- Memoized Values ---
 	const fullJourney = useMemo(
 		() => getFullRoundTripJourney(route, train),
 		[route, train]
 	);
 
-	// Get the status for *today*
-	const todaysStatus = getTodaysStatus(train.id);
-	const { lapCompleted } = todaysStatus;
+	const firstLegLength = useMemo(() => {
+		const stoppageMap = new Map(train.stoppages.map((s) => [s.stationId, s]));
+		return route.stations.filter((station) =>
+			stoppageMap.has(station.stationId)
+		).length;
+	}, [route, train]);
 
-	// *** FIXED *** (Issue 3: Can't complete lap)
-	// The last completed index is simply the number of arrivals minus 1.
-	// This is robust for round trips.
-	const lastCompletedIndex = todaysStatus.arrivals.length - 1;
+	// Create a default status object for mutations if none exists
+	const defaultStatus: DailyTrainStatus = {
+		train_id: train.id,
+		date: today,
+		lap_completed: false,
+		arrivals: [],
+		last_completed_station_id: null,
+	};
 
+	const status = todaysStatus || defaultStatus;
+	const { lap_completed: lapCompleted } = status;
+	const lastCompletedIndex = status.arrivals.length - 1;
+
+	// --- Handlers ---
 	const handleStationClick = (
 		station: Station & { journeyIndex: number; defaultTime: string }
 	) => {
-		if (lapCompleted) return; // Don't allow clicks if lap is done
+		if (lapCompleted || statusUpdateMutation.isPending) return;
 
 		const clickedIndex = station.journeyIndex;
+		let newStatus: UpdateStatusPayload;
 
 		if (clickedIndex <= lastCompletedIndex) {
-			// This is an "undo" click
-			// We roll back to the station *before* the one clicked.
-			// Clicking the first station (index 0) rolls back to the start (null).
+			// --- UNDO ---
 			const newLastStation =
 				clickedIndex > 0 ? fullJourney[clickedIndex - 1] : null;
 			const newLastStationId = newLastStation ? newLastStation.stationId : null;
 
-			// Call the (now fixed) undoArrival function
-			undoArrival(train.id, newLastStationId);
+			const newArrivals = status.arrivals.slice(0, clickedIndex);
+
+			newStatus = {
+				...status,
+				arrivals: newArrivals,
+				last_completed_station_id: newLastStationId,
+				lap_completed: false, // Can't be completed if we just undid
+			};
 		} else if (clickedIndex === lastCompletedIndex + 1) {
-			// This is the next station, mark it as arrived
-			markStationAsArrived(train.id, station);
+			// --- ADVANCE ---
+			const newArrival: StationArrivalRecord = {
+				id: uuid(),
+				stationId: station.stationId,
+				stationName: station.stationName,
+				arrivedAt: new Date().toISOString(),
+			};
+			newStatus = {
+				...status,
+				arrivals: [...status.arrivals, newArrival],
+				last_completed_station_id: station.stationId,
+			};
+		} else {
+			// Clicked too far ahead, do nothing
+			return;
 		}
-		// Clicks on stations further ahead are ignored
+
+		// Optimistically update before firing mutation
+		queryClient.setQueryData(queryKey, newStatus);
+		statusUpdateMutation.mutate(newStatus);
 	};
 
 	const handleCompleteLap = () => {
-		// This logic is now correct because lastCompletedIndex is reliable
+		if (lapCompleted || statusUpdateMutation.isPending) return;
+
 		if (lastCompletedIndex === fullJourney.length - 1) {
-			completeLap(train.id);
+			const newStatus: UpdateStatusPayload = {
+				...status,
+				lap_completed: true,
+			};
+			queryClient.setQueryData(queryKey, newStatus);
+			statusUpdateMutation.mutate(newStatus);
 		} else {
-			console.warn(
-				"Please mark all stations as arrived before completing the lap."
-			);
+			console.warn("Please mark all stations as arrived first.");
 		}
 	};
 
@@ -175,137 +219,132 @@ export default function TrainJourneyModal({
 				</div>
 
 				{/* --- Journey Body --- */}
-				<div className="p-6 space-y-4 overflow-y-auto">
-					{/* *** FIXED *** (Issue 2: Overlapping layout) */}
-					<div className="flex flex-wrap items-center gap-2">
-						{fullJourney.map((station, index) => {
-							const isCompleted = index <= lastCompletedIndex;
-							// The next station to arrive at
-							const isCurrent = index === lastCompletedIndex + 1;
-
-							// *** FIXED *** (Issue 2: Correct turnaround index)
-							const isTurnaround = index === firstLegLength - 1;
-
-							// Determine if clickable
-							// Clickable if it's the next station OR a completed one
-							const isClickable = !lapCompleted && (isCompleted || isCurrent);
-
-							const title = isClickable
-								? isCompleted
-									? `Click to undo (go back to ${fullJourney[index - 1]?.stationName || "start"})`
-									: "Click to mark as arrived"
-								: lapCompleted
-									? "Lap complete"
-									: "Cannot arrive here yet";
-
-							return (
-								<React.Fragment key={`${station.stationId}-${index}`}>
-									{/* Station Block */}
-									<div
-										className={`flex items-center gap-3 p-3 rounded-lg border ${
-											isClickable ? "cursor-pointer" : "cursor-not-allowed"
-										} ${
-											isCompleted ? "bg-gray-100 text-gray-500" : "bg-white"
-										} ${
-											isCurrent && !lapCompleted
-												? "border-blue-500 ring-2 ring-blue-500"
-												: "border-gray-300"
-										}`}
-										onClick={() => isClickable && handleStationClick(station)}
-										title={title}
-									>
-										{/* Icon */}
-										<div>
-											{isCompleted ? (
-												<CheckCircle className="w-5 h-5 text-green-500" />
-											) : isCurrent && !lapCompleted ? (
-												<TrainFront className="w-5 h-5 text-blue-500" />
-											) : (
-												// Simple dot for pending stations
-												<div className="w-5 h-5 flex items-center justify-center">
-													<div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-												</div>
-											)}
-										</div>
-										{/* Station Info */}
-										<div className="flex-shrink min-w-0">
-											{" "}
-											{/* Allow shrinking, prevent overlap */}
-											<span className="block font-bold truncate">
-												{" "}
-												{/* Truncate long names */}
-												{station.stationName}
-											</span>
-											{/* *** CHANGED *** (Issue: Add return lap time) */}
-											<span className="text-xs text-blue-600 font-mono">
-												({station.defaultTime})
-											</span>
-										</div>
-									</div>
-
-									{/* Arrow or Turnaround Block */}
-									{isTurnaround ? (
-										<div className="flex items-center p-3 text-red-600 font-semibold">
-											<CornerDownRight className="w-5 h-5 mr-2" />
-											TURNAROUND
-										</div>
-									) : index < fullJourney.length - 1 ? (
-										<div className="flex items-center justify-center p-2 text-gray-300">
-											<ArrowRight className="w-5 h-5" />
-										</div>
-									) : null}
-								</React.Fragment>
-							);
-						})}
+				{isLoading ? (
+					<div className="p-10 flex justify-center items-center">
+						<Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+						<span className="ml-4 text-gray-600">Loading daily status...</span>
 					</div>
+				) : (
+					<div className="p-6 space-y-4 overflow-y-auto">
+						<div className="flex flex-wrap items-center gap-2">
+							{fullJourney.map((station, index) => {
+								const isCompleted = index <= lastCompletedIndex;
+								const isCurrent = index === lastCompletedIndex + 1;
+								const isTurnaround = index === firstLegLength - 1;
+								const isClickable = !lapCompleted && (isCompleted || isCurrent);
 
-					{/* --- Lap Completion Button --- */}
-					{/* This logic is now correct */}
-					{lastCompletedIndex === fullJourney.length - 1 && !lapCompleted && (
-						<div className="pt-4 text-center">
-							<button
-								className="px-6 py-3 bg-green-600 text-white font-bold rounded-lg shadow-lg hover:bg-green-700 transition-colors flex items-center gap-2 mx-auto"
-								onClick={handleCompleteLap}
-							>
-								<Flag className="w-5 h-5" />
-								Mark Daily Lap as Complete
-							</button>
-						</div>
-					)}
-					{lapCompleted && (
-						<div className="pt-4 text-center">
-							<p className="px-6 py-3 bg-green-100 text-green-800 font-semibold rounded-lg flex items-center gap-2 justify-center">
-								<CheckCircle className="w-5 h-5" />
-								Daily Lap Completed
-							</p>
-						</div>
-					)}
+								const title = isClickable
+									? isCompleted
+										? `Click to undo (go back to ${
+												fullJourney[index - 1]?.stationName || "start"
+											})`
+										: "Click to mark as arrived"
+									: lapCompleted
+										? "Lap complete"
+										: "Cannot arrive here yet";
 
-					{/* --- Arrival Log --- */}
-					{todaysStatus.arrivals.length > 0 && (
-						<div className="pt-4">
-							<h4 className="text-sm font-semibold text-gray-700 mb-2">
-								Today's Arrival Log
-							</h4>
-							<div className="max-h-32 overflow-y-auto bg-gray-50 border rounded-md p-2 space-y-1">
-								{todaysStatus.arrivals
-									.map((arrival) => (
-										<p
-											key={arrival.id}
-											className="text-xs text-gray-600 font-mono"
+								return (
+									<React.Fragment key={`${station.stationId}-${index}`}>
+										{/* Station Block */}
+										<div
+											className={`flex items-center gap-3 p-3 rounded-lg border ${
+												isClickable ? "cursor-pointer" : "cursor-not-allowed"
+											} ${
+												isCompleted ? "bg-gray-100 text-gray-500" : "bg-white"
+											} ${
+												isCurrent && !lapCompleted
+													? "border-blue-500 ring-2 ring-blue-500"
+													: "border-gray-300"
+											}`}
+											onClick={() => handleStationClick(station)}
+											title={title}
 										>
-											<span className="font-bold text-black">
-												{arrival.stationName}
-											</span>
-											{": "}
-											{new Date(arrival.arrivedAt).toLocaleTimeString()}
-										</p>
-									))
-									.reverse()}
-							</div>
+											{/* Icon */}
+											<div>
+												{isCompleted ? (
+													<CheckCircle className="w-5 h-5 text-green-500" />
+												) : isCurrent && !lapCompleted ? (
+													<TrainFront className="w-5 h-5 text-blue-500" />
+												) : (
+													<div className="w-5 h-5 flex items-center justify-center">
+														<div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+													</div>
+												)}
+											</div>
+											<div className="flex-shrink min-w-0">
+												<span className="block font-bold truncate">
+													{station.stationName}
+												</span>
+												<span className="text-xs text-blue-600 font-mono">
+													({station.defaultTime})
+												</span>
+											</div>
+										</div>
+
+										{/* Arrow or Turnaround Block */}
+										{isTurnaround ? (
+											<div className="flex items-center p-3 text-red-600 font-semibold">
+												<CornerDownRight className="w-5 h-5 mr-2" />
+												TURNAROUND
+											</div>
+										) : index < fullJourney.length - 1 ? (
+											<div className="flex items-center justify-center p-2 text-gray-300">
+												<ArrowRight className="w-5 h-5" />
+											</div>
+										) : null}
+									</React.Fragment>
+								);
+							})}
 						</div>
-					)}
-				</div>
+
+						{/* --- Lap Completion Button --- */}
+						{lastCompletedIndex === fullJourney.length - 1 && !lapCompleted && (
+							<div className="pt-4 text-center">
+								<button
+									className="px-6 py-3 bg-green-600 text-white font-bold rounded-lg shadow-lg hover:bg-green-700 transition-colors flex items-center gap-2 mx-auto disabled:opacity-50"
+									onClick={handleCompleteLap}
+									disabled={statusUpdateMutation.isPending}
+								>
+									<Flag className="w-5 h-5" />
+									Mark Daily Lap as Complete
+								</button>
+							</div>
+						)}
+						{lapCompleted && (
+							<div className="pt-4 text-center">
+								<p className="px-6 py-3 bg-green-100 text-green-800 font-semibold rounded-lg flex items-center gap-2 justify-center">
+									<CheckCircle className="w-5 h-5" />
+									Daily Lap Completed
+								</p>
+							</div>
+						)}
+
+						{/* --- Arrival Log --- */}
+						{status.arrivals.length > 0 && (
+							<div className="pt-4">
+								<h4 className="text-sm font-semibold text-gray-700 mb-2">
+									Today's Arrival Log
+								</h4>
+								<div className="max-h-32 overflow-y-auto bg-gray-50 border rounded-md p-2 space-y-1">
+									{status.arrivals
+										.map((arrival) => (
+											<p
+												key={arrival.id}
+												className="text-xs text-gray-600 font-mono"
+											>
+												<span className="font-bold text-black">
+													{arrival.stationName}
+												</span>
+												{": "}
+												{new Date(arrival.arrivedAt).toLocaleTimeString()}
+											</p>
+										))
+										.reverse()}
+								</div>
+							</div>
+						)}
+					</div>
+				)}
 			</div>
 		</div>
 	);

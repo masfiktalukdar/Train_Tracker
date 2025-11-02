@@ -28,7 +28,6 @@
 
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
-    "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "emitDeclarationOnly": true,  // ← Use this instead of noEmit
     "jsx": "react-jsx",

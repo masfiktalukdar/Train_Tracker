@@ -1,22 +1,28 @@
 import apiClient from '@/lib/apiClient';
-import type { Station } from '@/store/adminStationStore'; // Reuse your type
+import type { Station } from '@app-types/dataModels'; // <-- 1. CORRECTED IMPORT PATH
+
+// Type from Supabase (it adds 'id' and 'created_at')
+export type ApiStation = Station & {
+  id: number;
+  created_at: string;
+};
 
 // Define the type for a new station (without ID)
 export type NewStationData = Omit<Station, 'stationId'>;
 
-// Type from Supabase (it adds 'id' and 'created_at')
-export type ApiStation = Station & { id: number; created_at: string };
+// 2. ADD THIS EXPORTED TYPE
+export type UpdateStationData = Partial<NewStationData>;
 
 export const getStations = async (): Promise<ApiStation[]> => {
   const { data } = await apiClient.get('/admin/stations');
   return data;
 };
 
-export const createStation = async (station: NewStationData): Promise<ApiStation> => {
-  // The backend uses snake_case, but your frontend type uses camelCase
-  // We must map the keys to match the backend API
+export const createStation = async (
+  station: NewStationData
+): Promise<ApiStation> => {
   const payload = {
-    stationId: crypto.randomUUID(), // Your modal used uuid(), let's stick with that
+    stationId: crypto.randomUUID(), // Your modal used uuid()
     stationName: station.stationName,
     stationLocation: station.stationLocation,
     stationLocationURL: station.stationLocationURL,
@@ -25,8 +31,30 @@ export const createStation = async (station: NewStationData): Promise<ApiStation
   return data;
 };
 
-export const deleteStation = async (stationId: number): Promise<void> => {
-  await apiClient.delete(`/admin/stations/${stationId}`);
+// 3. FIX THE FUNCTION SIGNATURE
+// It now accepts a single object, which matches what the modal is passing.
+export const updateStation = async ({
+  id,
+  updates,
+}: {
+  id: number;
+  updates: UpdateStationData;
+}): Promise<ApiStation> => {
+  // Map to snake_case for the backend
+  const payload: Record<string, string | undefined> = {
+    station_name: updates.stationName,
+    station_location: updates.stationLocation,
+    station_location_url: updates.stationLocationURL,
+  };
+
+  // Filter out any undefined keys
+  Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
+
+  const { data } = await apiClient.put(`/admin/stations/${id}`, payload);
+  return data;
 };
 
-// Add updateStation...
+export const deleteStation = async (id: number): Promise<void> => {
+  await apiClient.delete(`/admin/stations/${id}`);
+};
+

@@ -1,25 +1,80 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAdminStationRoutesData } from "@store/adminRoutesStore";
+import {
+	getRoutes,
+	createRoute,
+	ApiRoute,
+} from "@/features/admin/api/routesApi";
 import { ButtonPrimary, RoundedBlinkingButton } from "@/components/button";
 import Footer from "@/components/footer";
 import AdminWhiteBoardBuilder from "@/features/admin/components/adminWhiteboardBuilder";
-
-// helper function
+import { useEffect } from "react";
 
 export default function AdminStationRoutes() {
-	// getting data
-	const { activeRouteId, setActiveRoute, createNewRoute, routes } =
-		useAdminStationRoutesData();
+	const queryClient = useQueryClient();
+
+	// Get UI state from Zustand
+	const { activeRouteId, setActiveRoute } = useAdminStationRoutesData();
+
+	// Fetch Server State (Routes) with TanStack Query
+	const {
+		data: routes = [],
+		isLoading,
+		isError,
+	} = useQuery<ApiRoute[]>({
+		queryKey: ["routes"],
+		queryFn: getRoutes,
+	});
+
+	// Create New Route Mutation
+	const createRouteMutation = useMutation({
+		mutationFn: () => createRoute("Untitled Route"),
+		onSuccess: (newRoute) => {
+			// Add the new route to the cache
+			queryClient.setQueryData(["routes"], (oldData: ApiRoute[] = []) => [
+				...oldData,
+				newRoute,
+			]);
+			// Set this new route as active in our UI store
+			setActiveRoute(newRoute.id.toString());
+		},
+	});
+
+	// Effect to set an active route if one isn't set
+	useEffect(() => {
+		if (!activeRouteId && routes.length > 0) {
+			setActiveRoute(routes[0].id.toString());
+		}
+	}, [activeRouteId, routes, setActiveRoute]);
+
+	const activeRoute = routes.find((r) => r.id.toString() === activeRouteId);
+
+	if (isLoading) {
+		return (
+			<div className="flex-1 flex items-center justify-center">
+				Loading routes...
+			</div>
+		);
+	}
+
+	if (isError) {
+		return (
+			<div className="flex-1 flex items-center justify-center text-red-500">
+				Error loading routes.
+			</div>
+		);
+	}
 
 	return (
 		<div className="w-full min-h-full bg-primary-100 flex-1 flex flex-col">
-			{!activeRouteId ? (
-				<RoundedBlinkingButton onClick={createNewRoute} />
+			{routes.length === 0 ? (
+				<RoundedBlinkingButton onClick={() => createRouteMutation.mutate()} />
 			) : (
 				/* Header add station and search section */
 				<div className="mx-6">
 					<div className="flex gap-4 justify-end mt-5 mb-6">
-						<ButtonPrimary onClick={createNewRoute}>
-							Add new route
+						<ButtonPrimary onClick={() => createRouteMutation.mutate()}>
+							{createRouteMutation.isPending ? "Creating..." : "Add new route"}
 						</ButtonPrimary>
 						<select
 							name="route-select"
@@ -31,7 +86,7 @@ export default function AdminStationRoutes() {
 							<option value="" disabled>
 								-- Select a route --
 							</option>
-							{Object.values(routes).map((route) => (
+							{routes.map((route) => (
 								<option
 									key={route.id}
 									value={route.id}
@@ -42,10 +97,15 @@ export default function AdminStationRoutes() {
 							))}
 						</select>
 					</div>
-					<h1 className="text-gray-900 text-xl font-semibold mb-6">
-						Admin Route Builder (up)
-					</h1>
-					<AdminWhiteBoardBuilder />
+
+					{/* Pass the activeRoute object to the whiteboard */}
+					{activeRoute ? (
+						<AdminWhiteBoardBuilder activeRoute={activeRoute} />
+					) : (
+						<div className="text-center p-10 text-gray-500">
+							Select a route to begin.
+						</div>
+					)}
 				</div>
 			)}
 			{/* Footer Section */}

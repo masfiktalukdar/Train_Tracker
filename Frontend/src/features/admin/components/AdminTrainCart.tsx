@@ -1,29 +1,39 @@
-import { useAdminStationRoutesData, type Train } from "@/store/adminRoutesStore";
-import { Edit, MoreVertical, TrainFront, Trash2 } from "lucide-react";
+import { TrainFront, MoreVertical, Edit, Trash2 } from "lucide-react";
 import { useState } from "react";
+import type { ApiTrain } from "@/features/admin/api/trainsApi";
+import type { ApiRoute } from "@/features/admin/api/routesApi";
 
 type TrainCardProps = {
-	train: Train;
-	onEdit: (train: Train) => void;
-	onDelete: (trainId: string) => void;
-	onViewJourney: (train: Train) => void;
+	train: ApiTrain;
+	route: ApiRoute | undefined; // The route object
+	onEdit: (train: ApiTrain) => void;
+	onDelete: (trainId: number) => void; // Pass the numeric ID
+	onViewJourney: (train: ApiTrain) => void;
 };
 
-
-export default function TrainCard({ train, onEdit, onDelete, onViewJourney }:TrainCardProps) {
+export default function TrainCard({
+	train,
+	route,
+	onEdit,
+	onDelete,
+	onViewJourney,
+}: TrainCardProps) {
 	const [menuOpen, setMenuOpen] = useState(false);
-	const { routes } = useAdminStationRoutesData();
-	const routeName = routes[train.routeId]?.name || "Unknown Route";
+	const routeName = route?.name || "Unknown Route";
 
 	return (
 		<div className="bg-white rounded-lg shadow-md border">
 			<div className="p-4 flex items-center justify-between">
 				<div className="flex items-center gap-4">
 					<div
-						className={`p-3 rounded-full ${train.direction === "up" ? "bg-green-100" : "bg-red-100"}`}
+						className={`p-3 rounded-full ${
+							train.direction === "up" ? "bg-green-100" : "bg-red-100"
+						}`}
 					>
 						<TrainFront
-							className={`w-6 h-6 ${train.direction === "up" ? "text-green-600" : "text-red-600"}`}
+							className={`w-6 h-6 ${
+								train.direction === "up" ? "text-green-600" : "text-red-600"
+							}`}
 						/>
 					</div>
 					<div>
@@ -33,7 +43,11 @@ export default function TrainCard({ train, onEdit, onDelete, onViewJourney }:Tra
 						</span>
 					</div>
 					<span
-						className={`px-3 py-1 rounded-full text-xs font-semibold ${train.direction === "up" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
+						className={`px-3 py-1 rounded-full text-xs font-semibold ${
+							train.direction === "up"
+								? "bg-green-100 text-green-700"
+								: "bg-red-100 text-red-700"
+						}`}
 					>
 						{train.direction.toUpperCase()}
 					</span>
@@ -74,7 +88,7 @@ export default function TrainCard({ train, onEdit, onDelete, onViewJourney }:Tra
 								<button
 									className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center"
 									onClick={() => {
-										onDelete(train.id);
+										onDelete(train.id); // Pass numeric ID
 										setMenuOpen(false);
 									}}
 								>

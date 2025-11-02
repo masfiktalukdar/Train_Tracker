@@ -1,50 +1,135 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAdminStationRoutesData } from "@store/adminRoutesStore";
 import { useMemo, useRef, useState } from "react";
 import AdminDataAddDropdown from "./adminDataAddDropdown";
 import { Move, RotateCw, Trash2, ZoomIn, ZoomOut } from "lucide-react";
-import type { Station } from "@/store/adminStationStore";
+import type { ApiRoute } from "@/features/admin/api/routesApi";
+import { updateRoute, deleteRoute } from "@/features/admin/api/routesApi";
+import { getStations, ApiStation } from "@/features/admin/api/stationsApi"; // We'll use the station API
+import type { Station } from "@/store/adminStationStore"; // Keep using this simple type for logic
 
-export default function AdminWhiteBoardBuilder() {
-	const {
-		activeRouteId,
-		routes,
-		stationList,
-    deleteRoute,
-		addStationToActiveRoute,
-		removeStationFromActiveRoute,
-		clearStationsFromActiveRoute,
-	} = useAdminStationRoutesData();
-	const activeRoute = activeRouteId ? routes[activeRouteId] : null;
+// Helper function to auto-name routes
+function formatRouteName(stations: Station[]) {
+	if (!stations || stations.length === 0) return "Untitled Route";
+	const names = stations.map((s) => s.stationName.split(" ")[0].toUpperCase());
+	if (names.length === 1) return names[0];
+	return `${names[0]} - ${names[names.length - 1]}`;
+}
 
+type WhiteBoardProps = {
+	activeRoute: ApiRoute;
+};
+
+export default function AdminWhiteBoardBuilder({
+	activeRoute,
+}: WhiteBoardProps) {
+	const queryClient = useQueryClient();
+	const { setActiveRoute } = useAdminStationRoutesData();
+
+	// Fetch all available stations for the dropdown
+	const { data: allStations = [] } = useQuery<ApiStation[]>({
+		queryKey: ["stations"],
+		queryFn: getStations,
+	});
+
+	// Mutation for updating the route (add/remove/clear stations)
+	const updateRouteMutation = useMutation({
+		mutationFn: updateRoute,
+		onSuccess: (updatedRoute) => {
+			// Optimistically update the cache
+			queryClient.setQueryData(["routes"], (oldData: ApiRoute[] = []) =>
+				oldData.map((route) =>
+					route.id === updatedRoute.id ? updatedRoute : route
+				)
+			);
+		},
+		onError: (err) => {
+			console.error("Failed to update route:", err);
+			// You could show an error toast here
+			// And invalidate to refetch and revert optimistic update
+			queryClient.invalidateQueries({ queryKey: ["routes"] });
+		},
+	});
+
+	// Mutation for deleting the route
+	const deleteRouteMutation = useMutation({
+		mutationFn: () => deleteRoute(activeRoute.id),
+		onSuccess: () => {
+			// Remove from cache
+			queryClient.setQueryData(["routes"], (oldData: ApiRoute[] = []) =>
+				oldData.filter((route) => route.id !== activeRoute.id)
+			);
+			// Clear the active route ID in Zustand
+			setActiveRoute("");
+		},
+	});
+
+	// --- Local UI State (All this is perfect) ---
 	const [viewport, setViewport] = useState({ x: 50, y: 100, zoom: 1 });
 	const [isPanning, setIsPanning] = useState(false);
-
 	const panStartRef = useRef({
 		startX: 0,
 		startY: 0,
 		viewportX: 0,
 		viewportY: 0,
 	});
-
 	const [showAddModal, setShowAddModal] = useState({
 		isOpen: false,
 		insertAfterIndex: -1,
 	});
-
 	const svgRef = useRef<SVGSVGElement | null>(null);
 
-	// returning all the available stations after using
+	// --- Refactored Logic ---
+
+	// Find stations that are NOT already in the active route
 	const availableStations = useMemo(() => {
-		const activeStationIds = new Set(activeRoute?.stations.map((s) => s.stationId));
-		return stationList.filter((s) => !activeStationIds.has(s.stationId));
-	}, [activeRoute, stationList]);
+		const activeStationIds = new Set(
+			activeRoute.stations.map((s) => s.stationId)
+		);
+		return allStations.filter((s) => !activeStationIds.has(s.stationId));
+	}, [activeRoute, allStations]);
 
-	// all the event handler, pen and zoom
+	// Handle adding a station
+	const handleAddStation = (station: Station, insertAfterIndex: number) => {
+		const newStations = [...activeRoute.stations];
+		newStations.splice(insertAfterIndex + 1, 0, station);
+
+		updateRouteMutation.mutate({
+			id: activeRoute.id,
+			name: formatRouteName(newStations), // Auto-update the name
+			stations: newStations,
+		});
+		setShowAddModal({ isOpen: false, insertAfterIndex: -1 });
+	};
+
+	// Handle removing a station
+	const handleRemoveStation = (stationId: string) => {
+		const newStations = activeRoute.stations.filter(
+			(s) => s.stationId !== stationId
+		);
+
+		updateRouteMutation.mutate({
+			id: activeRoute.id,
+			name: formatRouteName(newStations), // Auto-update the name
+			stations: newStations,
+		});
+	};
+
+	// Handle clearing all stations
+	const clearStationsFromActiveRoute = () => {
+		updateRouteMutation.mutate({
+			id: activeRoute.id,
+			name: "Untitled Route",
+			stations: [],
+		});
+	};
+
+	// --- (Panning and Zooming handlers are unchanged) ---
+	// ... onMouseDown, onMouseMove, onMouseUp, zoom, resetView ...
 	type MouseDivEvent = React.MouseEvent<HTMLDivElement>;
-
+	// ... (pasting your existing handlers here for completeness) ...
 	const getSvgPoint = (clientX: number, clientY: number) => {
 		if (!svgRef.current) return { x: 0, y: 0 };
-
 		const pt = svgRef.current.createSVGPoint();
 		pt.x = clientX;
 		pt.y = clientY;
@@ -52,13 +137,10 @@ export default function AdminWhiteBoardBuilder() {
 		if (screenCTM) return pt.matrixTransform(screenCTM.inverse());
 		return pt;
 	};
-
 	const onMouseDown = (e: MouseDivEvent) => {
 		e.preventDefault();
 		setIsPanning(true);
 		const startPoint = getSvgPoint(e.clientX, e.clientY);
-
-		// Store the initial state in the ref
 		panStartRef.current = {
 			startX: startPoint.x,
 			startY: startPoint.y,
@@ -69,18 +151,12 @@ export default function AdminWhiteBoardBuilder() {
 	const onMouseMove = (e: MouseDivEvent) => {
 		if (!isPanning) return;
 		e.preventDefault();
-
-		// Get data from ref
 		const { startX, startY, viewportX, viewportY } = panStartRef.current;
 		const newPoint = getSvgPoint(e.clientX, e.clientY);
-
-		// Calculate the delta in SVG space
 		const deltaX = newPoint.x - startX;
 		const deltaY = newPoint.y - startY;
-
-		// Apply the delta to the *original* viewport position
 		setViewport((v) => ({
-			...v, // Keep the zoom
+			...v,
 			x: viewportX + deltaX,
 			y: viewportY + deltaY,
 		}));
@@ -88,51 +164,34 @@ export default function AdminWhiteBoardBuilder() {
 	const onMouseUp = () => {
 		setIsPanning(false);
 	};
-
-	// -- zooming --
-
 	const zoom = (factor: number) => {
 		setViewport((v) => {
 			if (!svgRef.current) return v;
 			const newZoom = Math.min(Math.max(v.zoom * factor, 0.2), 3);
-
-			// Get center of the visible SVG area
 			const svgRect = svgRef.current.getBoundingClientRect();
 			const centerX = svgRect.width / 2;
 			const centerY = svgRect.height / 2;
 			const svgPoint = getSvgPoint(centerX, centerY);
-
 			const newX = svgPoint.x - (svgPoint.x - v.x) * (newZoom / v.zoom);
 			const newY = svgPoint.y - (svgPoint.y - v.y) * (newZoom / v.zoom);
-
 			return { x: newX, y: newY, zoom: newZoom };
 		});
 	};
-
 	const resetView = () => {
 		setViewport({ x: 50, y: 100, zoom: 1 });
 	};
+	// --- (End of Panning/Zooming handlers) ---
 
 	const handleShowAddModal = (insertAfterIndex: number) => {
 		setShowAddModal({ isOpen: true, insertAfterIndex });
 	};
 
-	const handleAddStation = (station: Station, insertAfterIndex: number) => {
-		addStationToActiveRoute(station, insertAfterIndex);
-		setShowAddModal({ isOpen: false, insertAfterIndex: -1 });
-	};
-
-	const handleRemoveStation = (stationId: string) => {
-		removeStationFromActiveRoute(stationId);
-	};
-
-
-	// --- Constants for drawing ---
+	// --- Constants for drawing (unchanged) ---
 	const stationWidth = 160;
 	const stationHeight = 60;
-	const horizontalSpacing = 120; // Space between stations
-	const stationNodeY = 200; // Y position for all stations
-	const trackHeight = 20; // Visual height of the track
+	const horizontalSpacing = 120;
+	const stationNodeY = 200;
+	const trackHeight = 20;
 
 	return (
 		<div
@@ -143,7 +202,7 @@ export default function AdminWhiteBoardBuilder() {
 			className="w-full h-[50vh] md:h-[600px] mb-5 relative bg-gray-100 border border-gray-300 rounded-lg overflow-hidden cursor-grab active:cursor-grabbing"
 		>
 			<svg ref={svgRef} className="w-full h-full select-none">
-				{/* Define the train track pattern (like your image) */}
+				{/* --- (Defs and G transform are unchanged) --- */}
 				<defs>
 					<pattern
 						id="train-track"
@@ -151,17 +210,14 @@ export default function AdminWhiteBoardBuilder() {
 						height={trackHeight}
 						patternUnits="userSpaceOnUse"
 					>
-						{/* Rail ties */}
 						<rect x="0" y="0" width="8" height={trackHeight} fill="#8d6e63" />
 					</pattern>
 				</defs>
-
-				{/* This group holds all stations/tracks and is panned/zoomed */}
 				<g
 					transform={`translate(${viewport.x}, ${viewport.y}) scale(${viewport.zoom})`}
 				>
 					{/* --- "Add Entry Point" Button --- */}
-					{activeRoute?.stations.length === 0 && (
+					{activeRoute.stations.length === 0 && (
 						<g
 							className="cursor-pointer group"
 							transform={`translate(0, ${stationNodeY})`}
@@ -190,10 +246,10 @@ export default function AdminWhiteBoardBuilder() {
 						</g>
 					)}
 
-					{/* --- Render Stations and Tracks --- */}
-					{activeRoute?.stations.map((station, index) => {
+					{/* --- (Render Stations and Tracks - Unchanged) --- */}
+					{activeRoute.stations.map((station, index) => {
 						const stationX = index * (stationWidth + horizontalSpacing);
-						// --- 1. Render Track from previous station ---
+						// ... (trackPath logic is the same) ...
 						let trackPath = null;
 						if (index > 0) {
 							const prevStationX =
@@ -202,10 +258,8 @@ export default function AdminWhiteBoardBuilder() {
 							const startY = stationNodeY + stationHeight / 2;
 							const endX = stationX;
 							const endY = startY;
-
 							trackPath = (
 								<g>
-									{/* Track ties (using pattern) */}
 									<rect
 										x={startX}
 										y={startY - trackHeight / 2}
@@ -213,7 +267,6 @@ export default function AdminWhiteBoardBuilder() {
 										height={trackHeight}
 										fill="url(#train-track)"
 									/>
-									{/* Rails */}
 									<line
 										x1={startX}
 										y1={startY - trackHeight / 2 + 3}
@@ -234,14 +287,14 @@ export default function AdminWhiteBoardBuilder() {
 							);
 						}
 
-						// --- 2. Render "Add" button *after* this station ---
+						// ... (addBetweenButton logic is the same) ...
 						const btnX = stationX + stationWidth + horizontalSpacing / 2;
 						const btnY = stationNodeY + stationHeight / 2;
 						const addBetweenButton = (
 							<g
 								className="cursor-pointer group"
 								onClick={(e) => {
-									e.stopPropagation(); // Don't trigger pan
+									e.stopPropagation();
 									handleShowAddModal(index);
 								}}
 								transform={`translate(${btnX}, ${btnY})`}
@@ -275,7 +328,7 @@ export default function AdminWhiteBoardBuilder() {
 							</g>
 						);
 
-						// --- 3. Render Station Node ---
+						// ... (Station Node logic is the same, just uses handleRemoveStation) ...
 						return (
 							<g key={station.stationId}>
 								{trackPath}
@@ -284,7 +337,7 @@ export default function AdminWhiteBoardBuilder() {
 									<rect
 										width={stationWidth}
 										height={stationHeight}
-										rx="10" // rounded corners
+										rx="10"
 										ry="10"
 										fill="#fff"
 										stroke="#4a4a4a"
@@ -301,12 +354,11 @@ export default function AdminWhiteBoardBuilder() {
 									>
 										{station.stationName.split(" ")[0]}
 									</text>
-									{/* Delete button for station */}
 									<g
 										className="cursor-pointer group"
 										transform={`translate(${stationWidth}, 0)`}
 										onClick={(e) => {
-											e.stopPropagation(); // Don't trigger pan
+											e.stopPropagation();
 											handleRemoveStation(station.stationId);
 										}}
 									>
@@ -340,8 +392,9 @@ export default function AdminWhiteBoardBuilder() {
 				</g>
 			</svg>
 
-			{/* --- UI Controls --- */}
+			{/* --- (UI Controls are mostly unchanged) --- */}
 			<div className="absolute top-2 right-2 flex flex-col gap-2 z-10">
+				{/* ... (ZoomIn, ZoomOut, Move buttons) ... */}
 				<button
 					onClick={() => zoom(1.2)}
 					className="p-2 bg-white rounded-md shadow border hover:bg-gray-100 transition-colors"
@@ -361,7 +414,7 @@ export default function AdminWhiteBoardBuilder() {
 					<Move size={20} />
 				</button>
 				<button
-					onClick={clearStationsFromActiveRoute}
+					onClick={clearStationsFromActiveRoute} // Now fires mutation
 					className="p-2 bg-white rounded-md shadow border hover:bg-gray-100 transition-colors"
 				>
 					<RotateCw size={20} />
@@ -369,14 +422,12 @@ export default function AdminWhiteBoardBuilder() {
 			</div>
 			<div className="absolute bottom-2 right-2 z-10">
 				<button
-					onClick={() => {
-						if (activeRouteId) {
-							deleteRoute(activeRouteId);
-						}
-					}}
-					className="p-2 px-3 bg-red-500 text-white rounded-md shadow hover:bg-red-600 transition-colors flex items-center gap-1"
+					onClick={() => deleteRouteMutation.mutate()} // Now fires mutation
+					disabled={deleteRouteMutation.isPending}
+					className="p-2 px-3 bg-red-500 text-white rounded-md shadow hover:bg-red-600 transition-colors flex items-center gap-1 disabled:opacity-50"
 				>
-					<Trash2 size={16} /> Delete Route
+					<Trash2 size={16} />
+					{deleteRouteMutation.isPending ? "Deleting..." : "Delete Route"}
 				</button>
 			</div>
 
@@ -386,8 +437,8 @@ export default function AdminWhiteBoardBuilder() {
 					onClose={() =>
 						setShowAddModal({ isOpen: false, insertAfterIndex: -1 })
 					}
-					onSelect={handleAddStation}
-					availableData={availableStations}
+					onSelect={handleAddStation} // This now fires the mutation
+					availableData={availableStations} // This is now from useQuery
 					insertedAfterIndex={showAddModal.insertAfterIndex}
 				/>
 			)}

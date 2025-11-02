@@ -1,23 +1,44 @@
-import {
-	useAdminStationRoutesData,
-	type Train,
-	type TrainStoppage,
-} from "@/store/adminRoutesStore";
-import type { Station } from "@/store/adminStationStore";
+import { useState, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, X } from "lucide-react";
-import { useState } from "react";
+import type { TrainStoppage } from "@/types/dataModels";
+import type { Station } from "@/types/dataModels";
+import type {
+	ApiTrain,
+	NewTrainData,
+	UpdateTrainData,
+} from "@/features/admin/api/trainsApi";
+import { createTrain, updateTrain } from "@/features/admin/api/trainsApi";
+import { getRoutes, ApiRoute } from "@/features/admin/api/routesApi";
 
 type TrainFormDialogProps = {
-	trainToEdit: Train | null;
-	routeId: string;
+	trainToEdit: ApiTrain | null;
+	selectedRouteId: number; // The route to add/edit the train on
 	onClose: () => void;
 };
 
+export default function TrainFormDialog({
+	trainToEdit,
+	selectedRouteId,
+	onClose,
+}: TrainFormDialogProps) {
+	const queryClient = useQueryClient();
 
-export default function TrainFormDialog({ trainToEdit, routeId, onClose }:TrainFormDialogProps) {
-	const { routes, addTrain, updateTrain } = useAdminStationRoutesData();
-	const routeStations = routes[routeId]?.stations || [];
+	// Fetch all routes to get station data for the selected route
+	const { data: routes = [] } = useQuery<ApiRoute[]>({
+		queryKey: ["routes"],
+		queryFn: getRoutes,
+	});
 
+	// Find the specific route object
+	const selectedRoute = useMemo(
+		() => routes.find((r) => r.id === selectedRouteId),
+		[routes, selectedRouteId]
+	);
+
+	const routeStations = selectedRoute?.stations || [];
+
+	// --- Local Form State ---
 	const [name, setName] = useState(trainToEdit?.name || "");
 	const [code, setCode] = useState(trainToEdit?.code || "");
 	const [direction, setDirection] = useState<"up" | "down">(
@@ -27,21 +48,37 @@ export default function TrainFormDialog({ trainToEdit, routeId, onClose }:TrainF
 		trainToEdit?.stoppages || []
 	);
 
-	// *** CHANGED *** (Issue: Add return lap time)
+	// --- Mutations ---
+	const createTrainMutation = useMutation({
+		mutationFn: createTrain,
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["trains"] });
+			onClose();
+		},
+		onError: (err) => console.error("Failed to create train:", err),
+	});
+
+	const updateTrainMutation = useMutation({
+		mutationFn: updateTrain,
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["trains"] });
+			onClose();
+		},
+		onError: (err) => console.error("Failed to update train:", err),
+	});
+
+	// --- Handlers (Your existing logic is great) ---
 	const handleStoppageToggle = (station: Station) => {
 		const isStoppage = stoppages.some((s) => s.stationId === station.stationId);
 		if (isStoppage) {
-			// Remove it
 			setStoppages(stoppages.filter((s) => s.stationId !== station.stationId));
 		} else {
-			// Add it with default times, sorted by route order
 			const newStoppage = {
 				stationId: station.stationId,
 				stationName: station.stationName,
 				upArrivalTime: "00:00",
 				downArrivalTime: "00:00",
 			};
-			// Insert it in the correct route order
 			const newStoppages = [...stoppages, newStoppage];
 			newStoppages.sort((a, b) => {
 				const indexA = routeStations.findIndex(
@@ -56,7 +93,6 @@ export default function TrainFormDialog({ trainToEdit, routeId, onClose }:TrainF
 		}
 	};
 
-	// *** CHANGED *** (Issue: Add return lap time)
 	const handleTimeChange = (
 		stationId: string,
 		time: string,
@@ -76,28 +112,39 @@ export default function TrainFormDialog({ trainToEdit, routeId, onClose }:TrainF
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
-		if (!name || !code || stoppages.length <=1) {
-			window.alert(
-				"Please fill in all fields and select at least two stoppage."
+		if (!name || !code || stoppages.length <= 1) {
+			// Use console.warn or a state error, not alert
+			console.warn(
+				"Please fill in all fields and select at least two stoppages."
 			);
 			return;
 		}
 
-		const trainData = {
-			name,
-			code,
-			routeId,
-			direction,
-			stoppages, // Already in the correct format
-		};
-
 		if (trainToEdit) {
-			updateTrain(trainToEdit.id, trainData);
+			// Update existing train
+			const trainData: UpdateTrainData = {
+				name,
+				code,
+				route_id: selectedRouteId,
+				direction,
+				stoppages,
+			};
+			updateTrainMutation.mutate({ id: trainToEdit.id, updates: trainData });
 		} else {
-			addTrain(trainData);
+			// Create new train
+			const trainData: NewTrainData = {
+				name,
+				code,
+				route_id: selectedRouteId,
+				direction,
+				stoppages,
+			};
+			createTrainMutation.mutate(trainData);
 		}
-		onClose();
 	};
+
+	const isPending =
+		createTrainMutation.isPending || updateTrainMutation.isPending;
 
 	return (
 		<div className="fixed inset-0 bg-black/50 z-40 flex items-center justify-center p-4">
@@ -180,7 +227,7 @@ export default function TrainFormDialog({ trainToEdit, routeId, onClose }:TrainF
 							Stoppages & Times
 						</label>
 						<p className="text-xs text-gray-500 mb-2">
-							Select the stations this train will stop at, in their route order.
+							Route: {selectedRoute?.name || "Loading..."}
 						</p>
 						<div className="border rounded-lg max-h-64 overflow-y-auto">
 							{routeStations.length > 0 ? (
@@ -203,12 +250,12 @@ export default function TrainFormDialog({ trainToEdit, routeId, onClose }:TrainF
 												/>
 												{station.stationName}
 											</label>
-											{/* *** CHANGED *** (Issue: Add return lap time) */}
 											<div className="flex items-center gap-4">
-												{/* Up Time */}
 												<label className="flex items-center gap-2 text-sm">
 													<ArrowUp
-														className={`w-4 h-4 ${isStoppage ? "text-green-500" : "text-gray-300"}`}
+														className={`w-4 h-4 ${
+															isStoppage ? "text-green-500" : "text-gray-300"
+														}`}
 													/>
 													<input
 														type="time"
@@ -224,10 +271,11 @@ export default function TrainFormDialog({ trainToEdit, routeId, onClose }:TrainF
 														}
 													/>
 												</label>
-												{/* Down Time */}
 												<label className="flex items-center gap-2 text-sm">
 													<ArrowDown
-														className={`w-4 h-4 ${isStoppage ? "text-red-500" : "text-gray-300"}`}
+														className={`w-4 h-4 ${
+															isStoppage ? "text-red-500" : "text-gray-300"
+														}`}
 													/>
 													<input
 														type="time"
@@ -266,8 +314,13 @@ export default function TrainFormDialog({ trainToEdit, routeId, onClose }:TrainF
 					<button
 						type="submit"
 						className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+						disabled={isPending}
 					>
-						{trainToEdit ? "Save Changes" : "Create Train"}
+						{isPending
+							? "Saving..."
+							: trainToEdit
+								? "Save Changes"
+								: "Create Train"}
 					</button>
 				</div>
 			</form>

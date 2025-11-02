@@ -1,30 +1,65 @@
-import {
-	useAdminStationRoutesData,
-	type Train,
-} from "@/store/adminRoutesStore";
-import { Plus, Search } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Plus, Search, Loader2 } from "lucide-react";
 import TrainCard from "../components/AdminTrainCart";
 import TrainFormDialog from "../components/adminTrainFormDialoge";
 import TrainJourneyModal from "../components/adminTrainJourneyModal";
 import Footer from "@/components/footer";
+import { getRoutes, ApiRoute } from "@/features/admin/api/routesApi";
+import {
+	getTrains,
+	deleteTrain,
+	ApiTrain,
+} from "@/features/admin/api/trainsApi";
 
 export default function AdminTrainPage() {
-	const { routes, trains } = useAdminStationRoutesData();
-	const [selectedRouteId, setSelectedRouteId] = useState<string | "all">("all");
+	const queryClient = useQueryClient();
+
+	// --- Local UI State ---
+	const [selectedRouteId, setSelectedRouteId] = useState<string>("all");
 	const [searchTerm, setSearchTerm] = useState("");
 	const [isFormOpen, setIsFormOpen] = useState(false);
 	const [isJourneyOpen, setIsJourneyOpen] = useState(false);
-	const [selectedTrain, setSelectedTrain] = useState<Train | null>(null);
+	const [selectedTrain, setSelectedTrain] = useState<ApiTrain | null>(null);
 
-	const routeList = Object.values(routes);
+	// --- Data Fetching ---
+	const { data: routes = [], isLoading: isLoadingRoutes } = useQuery<
+		ApiRoute[]
+	>({
+		queryKey: ["routes"],
+		queryFn: getRoutes,
+	});
 
-  console.log(trains)
+	const { data: trains = [], isLoading: isLoadingTrains } = useQuery<
+		ApiTrain[]
+	>({
+		queryKey: ["trains"],
+		queryFn: getTrains,
+	});
+
+	const isLoading = isLoadingRoutes || isLoadingTrains;
+
+	// --- Mutations ---
+	const deleteTrainMutation = useMutation({
+		mutationFn: deleteTrain,
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["trains"] });
+		},
+		onError: (err) => console.error("Failed to delete train:", err),
+	});
+
+	// --- Memoized Data ---
+	const routeList = routes;
+	const routesMap = useMemo(
+		() => new Map(routes.map((r) => [r.id, r])),
+		[routes]
+	);
 
 	const filteredTrains = useMemo(() => {
-		return Object.values(trains).filter((train) => {
+		return trains.filter((train) => {
 			const routeMatch =
-				selectedRouteId === "all" || train.routeId === selectedRouteId;
+				selectedRouteId === "all" ||
+				train.route_id.toString() === selectedRouteId;
 			const searchMatch =
 				train.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
 				train.code.toLowerCase().includes(searchTerm.toLowerCase());
@@ -36,9 +71,8 @@ export default function AdminTrainPage() {
 	const handleOpenAdd = () => {
 		if (selectedRouteId === "all" && routeList.length > 0) {
 			// If "All" is selected, default to the first route
-			setSelectedRouteId(routeList[0].id);
+			setSelectedRouteId(routeList[0].id.toString());
 		} else if (routeList.length === 0) {
-			// Replaced alert with console.warn - do not use alert()
 			console.warn("Please create a route first.");
 			return;
 		}
@@ -46,25 +80,31 @@ export default function AdminTrainPage() {
 		setIsFormOpen(true);
 	};
 
-	const handleOpenEdit = (train: Train) => {
-		setSelectedRouteId(train.routeId); // Ensure the correct route is selected
+	const handleOpenEdit = (train: ApiTrain) => {
+		setSelectedRouteId(train.route_id.toString()); // Ensure the correct route is selected
 		setSelectedTrain(train);
 		setIsFormOpen(true);
 	};
 
-	const handleOpenJourney = (train: Train) => {
+	const handleOpenJourney = (train: ApiTrain) => {
 		setSelectedTrain(train);
 		setIsJourneyOpen(true);
 	};
 
-	const { removeTrain } = useAdminStationRoutesData();
-	const handleDelete = (trainId: string) => {
-		// Replaced window.confirm - do not use confirm()
-		// In a real app, you'd use a custom modal here.
-		// For this example, we'll just delete directly.
-		console.log("Deleting train: " + trainId);
-		removeTrain(trainId);
+	const handleDelete = (trainId: number) => {
+		if (confirm("Are you sure you want to delete this train?")) {
+			deleteTrainMutation.mutate(trainId);
+		}
 	};
+
+	const selectedRouteForModal =
+		selectedRouteId === "all" && routeList.length > 0
+			? routeList[0].id
+			: parseInt(selectedRouteId, 10);
+
+	const selectedRouteForJourney = selectedTrain
+		? routesMap.get(selectedTrain.route_id)
+		: undefined;
 
 	return (
 		<div className="w-full flex-1 min-h-full bg-primary-100 flex flex-col">
@@ -90,9 +130,7 @@ export default function AdminTrainPage() {
 						value={selectedRouteId}
 						onChange={(e) => setSelectedRouteId(e.target.value)}
 					>
-						<option disabled value="all">
-							All Routes
-						</option>
+						<option value="all">All Routes</option>
 						{routeList.map((route) => (
 							<option key={route.id} value={route.id}>
 								{route.name}
@@ -110,38 +148,47 @@ export default function AdminTrainPage() {
 				</div>
 
 				{/* --- Train List --- */}
-				<div className="space-y-4">
-					{filteredTrains.length > 0 ? (
-						filteredTrains.map((train) => (
-							<TrainCard
-								key={train.id}
-								train={train}
-								onEdit={handleOpenEdit}
-								onDelete={handleDelete}
-								onViewJourney={handleOpenJourney}
-							/>
-						))
-					) : (
-						<p className="text-center text-gray-500 py-10">
-							{Object.keys(trains).length === 0
-								? "No trains created yet."
-								: "No trains match your search."}
-						</p>
-					)}
-				</div>
+				{isLoading ? (
+					<div className="flex justify-center items-center py-10">
+						<Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+						<span className="ml-4 text-gray-600">Loading trains...</span>
+					</div>
+				) : (
+					<div className="space-y-4">
+						{filteredTrains.length > 0 ? (
+							filteredTrains.map((train) => (
+								<TrainCard
+									key={train.id}
+									train={train}
+									route={routesMap.get(train.route_id)}
+									onEdit={handleOpenEdit}
+									onDelete={handleDelete}
+									onViewJourney={handleOpenJourney}
+								/>
+							))
+						) : (
+							<p className="text-center text-gray-500 py-10">
+								{trains.length === 0
+									? "No trains created yet."
+									: "No trains match your search."}
+							</p>
+						)}
+					</div>
+				)}
 
 				{/* --- Modals --- */}
 				{isFormOpen && (
 					<TrainFormDialog
 						trainToEdit={selectedTrain}
-						routeId={selectedRouteId as string} // Is never 'all' when form is open
+						selectedRouteId={selectedRouteForModal}
 						onClose={() => setIsFormOpen(false)}
 					/>
 				)}
 
-				{isJourneyOpen && selectedTrain && (
+				{isJourneyOpen && selectedTrain && selectedRouteForJourney && (
 					<TrainJourneyModal
 						train={selectedTrain}
+						route={selectedRouteForJourney}
 						onClose={() => setIsJourneyOpen(false)}
 					/>
 				)}

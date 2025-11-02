@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { X } from "lucide-react";
-import type { Station } from "@/store/adminStationStore";
+import type { Station } from "@app-types/dataModels";
 
 type AvailableData = Station;
 

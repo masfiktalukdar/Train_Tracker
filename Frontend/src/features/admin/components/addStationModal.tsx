@@ -1,82 +1,115 @@
 import {
 	useAdminStationModalToogle,
-	useAdminStationData,
-  // useStationModalData
+	// We no longer need useAdminStationData
 } from "@/store/adminStationStore";
 import { useEffect, useState } from "react";
-import { v4 as uuid } from "uuid";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+	createStation,
+	updateStation,
+	ApiStation,
+	NewStationData,
+	UpdateStationData,
+} from "@/features/admin/api/stationsApi"; // Import API functions
 
+// Update the props to receive a full station object
 type operationName = {
-  operation: "add" | "update",
-  editIndex: number | null
-}
+	operation: "add" | "update";
+	stationToEdit: ApiStation | null;
+};
 
-export default function AdminStationModal({operation, editIndex}: operationName) {
+export default function AdminStationModal({
+	operation,
+	stationToEdit,
+}: operationName) {
 	const { closeModal } = useAdminStationModalToogle();
-	const { stationList, setStationData, updateStationData } = useAdminStationData();
-  console.log(stationList)
+	const queryClient = useQueryClient();
 
+	// --- Local Form State ---
 	const [stationName, setStationName] = useState("");
 	const [stationLocation, setStationLocation] = useState("");
 	const [stationLocationURL, setStationLocationURL] = useState("");
 	const [error, setError] = useState<string>();
 
-  // previous data before editing the cart
-  const previousData = (editIndex !== null && typeof(editIndex) === "number") ? stationList?.[editIndex] : undefined;
+	const previousData = stationToEdit;
 
-    const same =
-			previousData &&
-			previousData.stationName === stationName &&
-			previousData.stationLocation === stationLocation &&
-			previousData.stationLocationURL === stationLocationURL;
+	// Check if form data is unchanged from the original
+	const same =
+		previousData &&
+		previousData.stationName === stationName &&
+		previousData.stationLocation === stationLocation &&
+		previousData.stationLocationURL === stationLocationURL;
 
-  useEffect(()=>{
-    // When opened in "update" mode
-    if(operation === "update" && previousData){
-      setStationName(previousData.stationName ?? "");
-      setStationLocation(previousData.stationLocation ?? "");
-      setStationLocationURL(previousData.stationLocationURL ?? "");
-      setError(undefined)
-    }
+	// --- Effect to populate form when `stationToEdit` changes ---
+	useEffect(() => {
+		if (operation === "update" && previousData) {
+			setStationName(previousData.stationName ?? "");
+			setStationLocation(previousData.stationLocation ?? "");
+			setStationLocationURL(previousData.stationLocationURL ?? "");
+			setError(undefined);
+		}
 
-    // Clearing all the fields when switching to "add" mode
-    if(operation === "add"){
-      setStationName("");
-      setStationLocation("");
+		// Clearing all the fields when switching to "add" mode
+		if (operation === "add") {
+			setStationName("");
+			setStationLocation("");
 			setStationLocationURL("");
 			setError(undefined);
-    }
-  },[operation, previousData, editIndex])
+		}
+	}, [operation, previousData]);
 
-  const updateHandler = function(e: React.MouseEvent<HTMLButtonElement>) {
-    e.preventDefault();
-    if(editIndex === null || typeof(editIndex) !== "number"){
-      setError("No station selected to update.");
-      return;
-    }
+	// --- TanStack Query Mutations ---
 
-    if (!stationName || !stationLocation || !stationLocationURL) {
+	// Mutation for Creating a Station
+	const createStationMutation = useMutation({
+		mutationFn: createStation,
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["stations"] });
+			closeModal();
+		},
+		onError: (err) => setError(err.message),
+	});
+
+	// Mutation for Updating a Station
+	const updateStationMutation = useMutation({
+		mutationFn: updateStation,
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["stations"] });
+			closeModal();
+		},
+		onError: (err) => setError(err.message),
+	});
+
+	// --- Event Handlers ---
+
+	const updateHandler = function (e: React.MouseEvent<HTMLButtonElement>) {
+		e.preventDefault();
+		if (!stationToEdit) {
+			setError("No station selected to update.");
+			return;
+		}
+
+		if (!stationName || !stationLocation || !stationLocationURL) {
 			setError("! All the fields are requred");
 			return;
 		}
 
-    const previous = stationList[editIndex];
-		if (!previous) {
-			setError("Station not found.");
-			return;
+		// Create an object with only the changed fields
+		const updates: UpdateStationData = {};
+		if (stationName !== stationToEdit.stationName)
+			updates.stationName = stationName;
+		if (stationLocation !== stationToEdit.stationLocation)
+			updates.stationLocation = stationLocation;
+		if (stationLocationURL !== stationToEdit.stationLocationURL)
+			updates.stationLocationURL = stationLocationURL;
+
+		if (Object.keys(updates).length > 0) {
+			// Only mutate if there are changes
+			updateStationMutation.mutate({ id: stationToEdit.id, updates });
+		} else {
+			closeModal(); // No changes, just close
 		}
-
-    const updatedData = {
-			stationId: previous.stationId,
-			stationName,
-			stationLocation,
-			stationLocationURL,
-		};
-
-    updateStationData(editIndex, updatedData);
-    setError(undefined);
-    closeModal();
-  }
+	};
 
 	const submitHandler = function (e: React.MouseEvent<HTMLButtonElement>) {
 		e.preventDefault();
@@ -85,17 +118,16 @@ export default function AdminStationModal({operation, editIndex}: operationName)
 			return;
 		}
 
-		setStationData({
-			stationId: uuid(),
+		const newStation: NewStationData = {
 			stationName,
 			stationLocation,
 			stationLocationURL,
-		});
-
-		setError(undefined);
-		closeModal();
+		};
+		createStationMutation.mutate(newStation);
 	};
 
+	const isPending =
+		createStationMutation.isPending || updateStationMutation.isPending;
 
 	return (
 		<div
@@ -161,10 +193,14 @@ export default function AdminStationModal({operation, editIndex}: operationName)
 					<button
 						type="submit"
 						className="mt-4 bg-primary-800 text-white py-2 px-4 rounded-md hover:bg-primary-700 font-mono disabled:opacity-70"
-            disabled={same}
-						onClick={operation === "add"? submitHandler : updateHandler}
+						disabled={same || isPending}
+						onClick={operation === "add" ? submitHandler : updateHandler}
 					>
-						{operation === "add" ? "Save Station" : "Update Station"}
+						{isPending
+							? "Saving..."
+							: operation === "add"
+								? "Save Station"
+								: "Update Station"}
 					</button>
 				</form>
 			</div>

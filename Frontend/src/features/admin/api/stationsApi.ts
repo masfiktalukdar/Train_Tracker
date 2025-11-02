@@ -1,23 +1,24 @@
 import apiClient from '@/lib/apiClient';
-import type { Station } from '@app-types/dataModels'; // <-- 1. CORRECTED IMPORT PATH
+// Import the types from our new central location
+import {
+  ApiStation,
+  NewStationData,
+  UpdateStationData,
+} from '@/types/dataModels';
 
-// Type from Supabase (it adds 'id' and 'created_at')
-export type ApiStation = Station & {
-  id: number;
-  created_at: string;
-};
-
-// Define the type for a new station (without ID)
-export type NewStationData = Omit<Station, 'stationId'>;
-
-// 2. ADD THIS EXPORTED TYPE
-export type UpdateStationData = Partial<NewStationData>;
-
+//
+// This is the function that needs to be fixed
+//
 export const getStations = async (): Promise<ApiStation[]> => {
-  const { data } = await apiClient.get('/admin/stations');
+  // IT MUST fetch from the '/public/stations' route, NOT '/admin/stations'
+  const { data } = await apiClient.get('/public/stations');
   return data;
 };
 
+//
+// All the mutations below are CORRECT. They correctly
+// point to the '/admin/...' routes which are protected.
+//
 export const createStation = async (
   station: NewStationData
 ): Promise<ApiStation> => {
@@ -31,8 +32,7 @@ export const createStation = async (
   return data;
 };
 
-// 3. FIX THE FUNCTION SIGNATURE
-// It now accepts a single object, which matches what the modal is passing.
+// This function now correctly accepts a single object
 export const updateStation = async ({
   id,
   updates,
@@ -41,20 +41,16 @@ export const updateStation = async ({
   updates: UpdateStationData;
 }): Promise<ApiStation> => {
   // Map to snake_case for the backend
-  const payload: Record<string, string | undefined> = {
+  const payload = {
     station_name: updates.stationName,
     station_location: updates.stationLocation,
     station_location_url: updates.stationLocationURL,
   };
-
-  // Filter out any undefined keys
-  Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
-
   const { data } = await apiClient.put(`/admin/stations/${id}`, payload);
   return data;
 };
 
-export const deleteStation = async (id: number): Promise<void> => {
-  await apiClient.delete(`/admin/stations/${id}`);
+export const deleteStation = async (stationId: number): Promise<void> => {
+  await apiClient.delete(`/admin/stations/${stationId}`);
 };
 

@@ -1,11 +1,5 @@
 import apiClient from '@/lib/apiClient';
-import type { Route } from '@/store/adminRoutesStore'; // Reuse types
-
-// Supabase returns 'id' as a number and 'created_at'
-export type ApiRoute = Omit<Route, 'id'> & {
-  id: number;
-  created_at: string;
-};
+import { ApiRoute } from '@/types/dataModels'; // Updated to correct import
 
 // --- API Functions ---
 
@@ -13,12 +7,15 @@ export type ApiRoute = Omit<Route, 'id'> & {
  * Fetches all routes from the database.
  */
 export const getRoutes = async (): Promise<ApiRoute[]> => {
-  const { data } = await apiClient.get('/admin/routes');
+  // THE FIX IS HERE:
+  // We fetch from the PUBLIC route, not the ADMIN route.
+  const { data } = await apiClient.get('/public/routes');
   return data;
 };
 
 /**
  * Creates a new, empty route.
+ * (This is a mutation, so it correctly uses the ADMIN route)
  */
 export const createRoute = async (routeName: string): Promise<ApiRoute> => {
   const { data } = await apiClient.post('/admin/routes', {
@@ -30,6 +27,7 @@ export const createRoute = async (routeName: string): Promise<ApiRoute> => {
 
 /**
  * Updates an existing route (e.g., changing its name or station list).
+ * (This is a mutation, so it correctly uses the ADMIN route)
  */
 export const updateRoute = async (
   route: Pick<ApiRoute, 'id' | 'name' | 'stations'>
@@ -43,7 +41,9 @@ export const updateRoute = async (
 
 /**
  * Deletes a route by its ID.
+ * (This is a mutation, so it correctly uses the ADMIN route)
  */
 export const deleteRoute = async (routeId: number): Promise<void> => {
   await apiClient.delete(`/admin/routes/${routeId}`);
 };
+

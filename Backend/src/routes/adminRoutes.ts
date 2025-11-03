@@ -7,7 +7,37 @@ const router = Router();
 // This middleware ensures only authenticated admins can access any route in this file.
 router.use(adminAuth);
 
+// --- ADDED: Helper functions to parse JSON fields ---
+const parseRoute = (route: any) => {
+  let stations = [];
+  if (route.stations && typeof route.stations === 'string') {
+    try {
+      stations = JSON.parse(route.stations);
+    } catch (e) {
+      console.error(`Failed to parse stations for route ${route.id}:`, e);
+    }
+  } else if (Array.isArray(route.stations)) {
+    stations = route.stations;
+  }
+  return { ...route, stations };
+};
+
+const parseTrain = (train: any) => {
+  let stoppages = [];
+  if (train.stoppages && typeof train.stoppages === 'string') {
+    try {
+      stoppages = JSON.parse(train.stoppages);
+    } catch (e) {
+      console.error(`Failed to parse stoppages for train ${train.id}:`, e);
+    }
+  } else if (Array.isArray(train.stoppages)) {
+    stoppages = train.stoppages;
+  }
+  return { ...train, stoppages };
+};
+
 // === DASHBOARD STATS ===
+// ... (your existing /dashboard/stats route is fine) ...
 router.get("/dashboard/stats", async (req: Request, res: Response) => {
   try {
     // --- 1. Get all counts in parallel ---
@@ -114,6 +144,7 @@ router.post('/status/update', async (req: Request, res: Response) => {
     return res.status(500).json({ error: error.message });
   }
 
+  // This route is fine, it already parses 'arrivals'
   if (data && data.arrivals && typeof data.arrivals === 'string') {
     try {
       data.arrivals = JSON.parse(data.arrivals);
@@ -129,7 +160,7 @@ router.post('/status/update', async (req: Request, res: Response) => {
 
 
 // =================================================================
-// --- NEW: MISSING STATION ROUTES ---
+// --- STATION ROUTES ---
 // =================================================================
 
 // CREATE a new station
@@ -149,7 +180,7 @@ router.post('/stations', async (req: Request, res: Response) => {
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
-  res.status(201).json(data);
+  res.status(201).json(data); // This is fine, no JSON fields
 });
 
 // UPDATE an existing station
@@ -165,10 +196,11 @@ router.put('/stations/:id', async (req: Request, res: Response) => {
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+  res.json(data); // This is fine, no JSON fields
 });
 
 // DELETE a station
+// ... (your existing delete station route is fine) ...
 router.delete('/stations/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
 
@@ -183,7 +215,7 @@ router.delete('/stations/:id', async (req: Request, res: Response) => {
 
 
 // =================================================================
-// --- NEW: MISSING ROUTE ROUTES ---
+// --- ROUTE ROUTES ---
 // =================================================================
 
 // CREATE a new route
@@ -197,7 +229,9 @@ router.post('/routes', async (req: Request, res: Response) => {
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
-  res.status(201).json(data);
+
+  // FIX: Parse the response before sending
+  res.status(201).json(parseRoute(data));
 });
 
 // UPDATE an existing route
@@ -213,10 +247,13 @@ router.put('/routes/:id', async (req: Request, res: Response) => {
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+
+  // FIX: Parse the response before sending
+  res.json(parseRoute(data));
 });
 
 // DELETE a route
+// ... (your existing delete route is fine) ...
 router.delete('/routes/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
 
@@ -231,12 +268,11 @@ router.delete('/routes/:id', async (req: Request, res: Response) => {
 
 
 // =================================================================
-// --- NEW: MISSING TRAIN ROUTES ---
+// --- TRAIN ROUTES ---
 // =================================================================
 
 // CREATE a new train
 router.post('/trains', async (req: Request, res: Response) => {
-  // Frontend sends data that matches snake_case table, so no mapping needed
   const { name, code, direction, route_id, stoppages } = req.body;
 
   const { data, error } = await supabase
@@ -246,7 +282,9 @@ router.post('/trains', async (req: Request, res: Response) => {
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
-  res.status(201).json(data);
+
+  // FIX: Parse the response before sending
+  res.status(201).json(parseTrain(data));
 });
 
 // UPDATE an existing train
@@ -262,10 +300,13 @@ router.put('/trains/:id', async (req: Request, res: Response) => {
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+
+  // FIX: Parse the response before sending
+  res.json(parseTrain(data));
 });
 
 // DELETE a train
+// ... (your existing delete train route is fine) ...
 router.delete('/trains/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
 

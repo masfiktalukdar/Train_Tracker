@@ -1,8 +1,9 @@
 import apiClient from "@/lib/apiClient";
 import type { TrainStoppage } from "@/types/dataModels";
 
-// --- ADDED ---
+// --- MODIFIED ---
 // This is the type returned by the backend (snake_case)
+// Note: stoppages can be a string
 type DbTrain = {
   id: number;
   created_at: string;
@@ -10,10 +11,9 @@ type DbTrain = {
   code: string;
   direction: "up" | "down";
   route_id: number;
-  stoppages: TrainStoppage[]; // This JSONB column is already camelCase
+  stoppages: string | TrainStoppage[]; // <-- MODIFIED
 };
 
-// --- RE-DEFINED ---
 // This is the type the frontend will use (all camelCase)
 export type ApiTrain = {
   id: number;
@@ -21,21 +21,34 @@ export type ApiTrain = {
   name: string;
   code: string;
   direction: "up" | "down";
-  routeId: number; // <-- camelCase
+  routeId: number;
   stoppages: TrainStoppage[];
 };
 
-// --- ADDED ---
-// Helper function to map DB response to frontend type
-const mapDbTrainToApiTrain = (dbTrain: DbTrain): ApiTrain => ({
-  id: dbTrain.id,
-  created_at: dbTrain.created_at,
-  name: dbTrain.name,
-  code: dbTrain.code,
-  direction: dbTrain.direction,
-  routeId: dbTrain.route_id,
-  stoppages: dbTrain.stoppages,
-});
+// --- MODIFIED ---
+// Helper function to map DB response to frontend type AND parse stoppages
+const mapDbTrainToApiTrain = (dbTrain: DbTrain): ApiTrain => {
+  let stoppages: TrainStoppage[] = [];
+  if (dbTrain.stoppages && typeof dbTrain.stoppages === 'string') {
+    try {
+      stoppages = JSON.parse(dbTrain.stoppages);
+    } catch (e) {
+      console.error(`Failed to parse stoppages for train ${dbTrain.id}:`, e);
+    }
+  } else if (Array.isArray(dbTrain.stoppages)) {
+    stoppages = dbTrain.stoppages;
+  }
+
+  return {
+    id: dbTrain.id,
+    created_at: dbTrain.created_at,
+    name: dbTrain.name,
+    code: dbTrain.code,
+    direction: dbTrain.direction,
+    routeId: dbTrain.route_id,
+    stoppages: stoppages, // <-- Use the parsed array
+  };
+};
 
 // For creating a new train (this type is correct, backend expects route_id)
 export type NewTrainData = {
@@ -62,9 +75,7 @@ type TrainUpdatePayload = {
  * Fetches all trains.
  */
 export const getTrains = async (): Promise<ApiTrain[]> => {
-  // 1. FIX: Hit the /public/trains route
   const { data } = await apiClient.get<DbTrain[]>("/public/trains");
-  // 2. FIX: Map snake_case response to camelCase
   return data.map(mapDbTrainToApiTrain);
 };
 
@@ -79,7 +90,6 @@ export const createTrain = async (
     route_id: trainData.route_id,
   };
   const { data } = await apiClient.post<DbTrain>("/admin/trains", payload);
-  // 3. FIX: Map snake_case response to camelCase
   return mapDbTrainToApiTrain(data);
 };
 
@@ -102,7 +112,6 @@ export const updateTrain = async ({
   if (updates.route_id !== undefined) payload.route_id = updates.route_id;
 
   const { data } = await apiClient.put<DbTrain>(`/admin/trains/${id}`, payload);
-  // 4. FIX: Map snake_case response to camelCase
   return mapDbTrainToApiTrain(data);
 };
 

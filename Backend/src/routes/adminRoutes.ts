@@ -1,134 +1,99 @@
-import { Router } from 'express';
-import type { Request, Response } from 'express';
+import { Router } from "express";
+import type { Request, Response } from "express";
 import supabase from "../config/supabaseClient.ts";
-import adminAuth from '../middleware/adminAuth.ts';
+import adminAuth from "../middleware/adminAuth.ts";
 const router = Router();
 
 router.use(adminAuth);
 
-// === STATIONS API ===
+// === NEW DASHBOARD STATS ENDPOINT ===
+router.get("/dashboard/stats", async (req: Request, res: Response) => {
+  try {
+    // --- 1. Get all counts in parallel ---
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
 
-router.post('/stations', async (req: Request, res: Response) => {
-  const { stationId, stationName, stationLocation, stationLocationURL } = req.body;
-  const { data, error } = await supabase
-    .from('stations')
-    .insert({
-      station_id: stationId,
-      station_name: stationName,
-      station_location: stationLocation,
-      station_location_url: stationLocationURL,
-    })
-    .select()
-    .single();
+    const [
+      totalUsersData,
+      totalRoutesData,
+      totalStationsData,
+      totalTrainsData,
+    ] = await Promise.all([
+      // a. Total registered users
+      supabase.from("profiles").select("*", { count: "exact", head: true }),
+      // b. Total routes
+      supabase.from("routes").select("*", { count: "exact", head: true }),
+      // c. Total stations
+      supabase.from("stations").select("*", { count: "exact", head: true }),
+      // d. Total trains
+      supabase.from("trains").select("*", { count: "exact", head: true }),
+    ]);
 
-  if (error) return res.status(500).json({ error: error.message });
-  res.status(201).json(data);
-});
+    // --- 2. Get user registration data for the chart ---
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    sixMonthsAgo.setDate(1); // Start from the beginning of that month
 
-router.put('/stations/:id', async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { station_name, station_location, station_location_url } = req.body;
+    const { data: users, error: usersError } = await supabase
+      .from("profiles")
+      .select("created_at")
+      .gt("created_at", sixMonthsAgo.toISOString());
 
-  const { data, error } = await supabase
-    .from('stations')
-    .update({
-      station_name,
-      station_location,
-      station_location_url,
-    })
-    .eq('id', id)
-    .select()
-    .single();
+    if (usersError) throw usersError;
 
-  if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
-});
+    // --- 3. Process data in JavaScript ---
+    const counts = new Map<string, number>();
+    const monthFormatter = new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      year: "2-digit",
+    });
 
-router.delete('/stations/:id', async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { error } = await supabase.from('stations').delete().eq('id', id);
+    // Initialize the map with the last 6 months
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date();
+      date.setMonth(date.getMonth() - i);
+      const key = monthFormatter.format(date); // "Oct '25", "Sep '25"
+      counts.set(key, 0);
+    }
 
-  if (error) return res.status(500).json({ error: error.message });
-  res.status(200).json({ message: 'Station deleted successfully' });
-});
+    // Iterate over fetched users and increment counts
+    if (users) {
+      for (const user of users) {
+        const key = monthFormatter.format(new Date(user.created_at));
+        if (counts.has(key)) {
+          counts.set(key, counts.get(key)! + 1);
+        }
+      }
+    }
 
+    // Format for the chart
+    const chartData = Array.from(counts.entries()).map(
+      ([date, count]) => ({
+        date: date,
+        registrationCount: count,
+        // Add month label logic for chart
+        month: date.split(" ")[0],
+        showMonthLabel: true, // We'll let the frontend re-process this
+      })
+    );
 
-// === ROUTES API ===
+    // --- 4. Consolidate all stats ---
+    const stats = {
+      totalUsers: totalUsersData.count ?? 0,
+      totalRoutes: totalRoutesData.count ?? 0,
+      totalStations: totalStationsData.count ?? 0,
+      totalTrains: totalTrainsData.count ?? 0,
+      chartData: chartData,
+    };
 
-router.post('/routes', async (req: Request, res: Response) => {
-  const { name, stations } = req.body;
-  const { data, error } = await supabase
-    .from('routes')
-    .insert({
-      name,
-      stations,
-    })
-    .select()
-    .single();
-
-  if (error) return res.status(500).json({ error: error.message });
-  res.status(201).json(data);
-});
-
-router.put('/routes/:id', async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { name, stations } = req.body;
-
-  const { data, error } = await supabase
-    .from('routes')
-    .update({ name, stations })
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
-});
-
-router.delete('/routes/:id', async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { error } = await supabase.from('routes').delete().eq('id', id);
-  if (error) return res.status(500).json({ error: error.message });
-  res.status(200).json({ message: 'Route deleted successfully' });
-});
-
-
-// === TRAINS API ===
-
-router.post('/trains', async (req: Request, res: Response) => {
-  const { name, code, direction, route_id, stoppages } = req.body;
-
-  const { data, error } = await supabase
-    .from('trains')
-    .insert({ name, code, direction, route_id, stoppages })
-    .select()
-    .single();
-
-  if (error) return res.status(500).json({ error: error.message });
-  res.status(201).json(data);
-});
-
-router.put('/trains/:id', async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { name, code, direction, route_id, stoppages } = req.body;
-
-  const { data, error } = await supabase
-    .from('trains')
-    .update({ name, code, direction, route_id, stoppages })
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
-});
-
-router.delete('/trains/:id', async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { error } = await supabase.from('trains').delete().eq('id', id);
-
-  if (error) return res.status(500).json({ error: error.message });
-  res.status(200).json({ message: 'Train deleted successfully' });
+    res.json(stats);
+  } catch (error) {
+    console.error("Error fetching dashboard stats:", error);
+    if (error instanceof Error) {
+      res.status(500).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: "An unknown error occurred" });
+    }
+  }
 });
 
 

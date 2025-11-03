@@ -1,27 +1,27 @@
 import { useMemo, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, Loader2 } from "lucide-react";
-import TrainCard from "../components/AdminTrainCart";
-import TrainFormDialog from "../components/adminTrainFormDialoge";
-import TrainJourneyModal from "../components/adminTrainJourneyModal";
-import Footer from "@/components/footer";
-import { getRoutes, ApiRoute } from "@/features/admin/api/routesApi";
+import TrainCard from "@features/admin/components/AdminTrainCart";
+import TrainFormDialog from "@features/admin/components/adminTrainFormDialoge";
+import TrainJourneyModal from "@features/admin/components/adminTrainJourneyModal";
+import Footer from "@components/footer";
+import { getRoutes, ApiRoute } from "@features/admin/api/routesApi";
 import {
 	getTrains,
 	deleteTrain,
 	ApiTrain,
-} from "@/features/admin/api/trainsApi";
+} from "@features/admin/api/trainsApi";
 
 export default function AdminTrainPage() {
 	const queryClient = useQueryClient();
 
 	// --- Local UI State ---
-	// No "all" - default to null until routes load
 	const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
 	const [searchTerm, setSearchTerm] = useState("");
 	const [isFormOpen, setIsFormOpen] = useState(false);
 	const [isJourneyOpen, setIsJourneyOpen] = useState(false);
 	const [selectedTrain, setSelectedTrain] = useState<ApiTrain | null>(null);
+	const [routeForModal, setRouteForModal] = useState<ApiRoute | null>(null);
 
 	// --- Data Fetching ---
 	const { data: routes = [], isLoading: isLoadingRoutes } = useQuery<
@@ -38,10 +38,22 @@ export default function AdminTrainPage() {
 		queryFn: getTrains,
 	});
 
-	// --- Effect to set default route ---
-	// This runs when routes load and sets the dropdown to the first route
+	// --- FIX: This logic is now robust ---
+	// It validates the selected ID against the route list
 	useEffect(() => {
-		if (!isLoadingRoutes && routes.length > 0 && !selectedRouteId) {
+		if (isLoadingRoutes || routes.length === 0) {
+			// Don't do anything until routes are loaded and not empty
+			return;
+		}
+
+		// Check if the current selectedRouteId is present in the new list of routes
+		const selectedIdIsValid =
+			selectedRouteId &&
+			routes.some((r) => r.id.toString() === selectedRouteId);
+
+		// If no ID is selected, OR if the selected ID is no longer valid (e.g., was deleted)
+		// default to the first route in the list.
+		if (!selectedIdIsValid) {
 			setSelectedRouteId(routes[0].id.toString());
 		}
 	}, [isLoadingRoutes, routes, selectedRouteId]);
@@ -58,17 +70,14 @@ export default function AdminTrainPage() {
 	});
 
 	// --- Memoized Data ---
-	const routeList = routes;
 	const routesMap = useMemo(
-		() => new Map(routes.map((r) => [r.id, r])),
+		() => new Map(routes.map((r) => [r.id.toString(), r])),
 		[routes]
 	);
 
 	const filteredTrains = useMemo(() => {
 		return trains.filter((train) => {
-			// If no route is selected (e.g., still loading), show no trains
 			if (!selectedRouteId) return false;
-
 			const routeMatch = train.routeId.toString() === selectedRouteId;
 			const searchMatch =
 				train.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -78,23 +87,54 @@ export default function AdminTrainPage() {
 	}, [trains, selectedRouteId, searchTerm]);
 
 	// --- Handlers ---
+
+	// This logic is now correct because the useEffect guarantees
+	// selectedRouteId will be valid (or will be set to a valid default).
 	const handleOpenAdd = () => {
-		if (routeList.length === 0) {
+		if (routes.length === 0) {
 			console.warn("Please create a route first.");
 			return;
 		}
-		// Ensure a route is selected before opening
-		if (!selectedRouteId && routeList.length > 0) {
-			setSelectedRouteId(routeList[0].id.toString());
+
+		// 1. Determine the route ID to use
+		let idToFind: string;
+		if (selectedRouteId) {
+			// Use the ID from the dropdown state
+			idToFind = selectedRouteId;
+		} else {
+			// This is a fallback, but the useEffect should prevent this
+			idToFind = routes[0].id.toString();
+			setSelectedRouteId(idToFind); // Sync the state
 		}
-		setSelectedTrain(null);
-		setIsFormOpen(true);
+
+		// 2. Find the route in the map using the string ID
+		const routeToOpen = routesMap.get(idToFind);
+
+		// 3. Open modal or log error
+		if (routeToOpen) {
+			setRouteForModal(routeToOpen);
+			setSelectedTrain(null);
+			setIsFormOpen(true);
+		} else {
+			// This error should no longer happen
+			console.error(
+				"Could not find route to open modal for. Looked for ID:",
+				idToFind
+			);
+		}
 	};
 
 	const handleOpenEdit = (train: ApiTrain) => {
-		setSelectedRouteId(train.routeId.toString()); // Ensure the correct route is selected
-		setSelectedTrain(train);
-		setIsFormOpen(true);
+		const routeIdString = train.routeId.toString();
+		const route = routesMap.get(routeIdString);
+		if (route) {
+			setRouteForModal(route);
+			setSelectedRouteId(routeIdString); // Set dropdown to match
+			setSelectedTrain(train);
+			setIsFormOpen(true);
+		} else {
+			console.error("Could not find route for the train to edit.");
+		}
 	};
 
 	const handleOpenJourney = (train: ApiTrain) => {
@@ -108,24 +148,15 @@ export default function AdminTrainPage() {
 		}
 	};
 
-	// This logic determines which route to pass to the modal
-	const routeForModal = useMemo(() => {
-		if (selectedTrain) {
-			// If EDITING, find the route associated with the train
-			return routesMap.get(selectedTrain.routeId);
-		}
-
-		// If ADDING, find the route selected in the dropdown
-		if (!selectedRouteId) {
-			// This handles the case where the modal is opened before useEffect runs
-			return routeList.length > 0 ? routeList[0] : undefined;
-		}
-		return routesMap.get(parseInt(selectedRouteId, 10));
-	}, [selectedTrain, selectedRouteId, routesMap, routeList]);
-
 	const selectedRouteForJourney = selectedTrain
-		? routesMap.get(selectedTrain.routeId)
+		? routesMap.get(selectedTrain.routeId.toString())
 		: undefined;
+
+	const handleCloseForm = () => {
+		setIsFormOpen(false);
+		setSelectedTrain(null);
+		setRouteForModal(null);
+	};
 
 	return (
 		<div className="w-full flex-1 min-h-full bg-primary-100 flex flex-col">
@@ -150,14 +181,13 @@ export default function AdminTrainPage() {
 						className="w-full p-2 border rounded-[4px] shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
 						value={selectedRouteId || ""} // Handle null state
 						onChange={(e) => setSelectedRouteId(e.target.value)}
-						disabled={routeList.length === 0} // Disable if no routes
+						disabled={routes.length === 0}
 					>
-						{/* No "All Routes" option */}
-						{routeList.length === 0 ? (
+						{routes.length === 0 ? (
 							<option value="">No routes available</option>
 						) : (
-							routeList.map((route) => (
-								<option key={route.id} value={route.id}>
+							routes.map((route) => (
+								<option key={route.id} value={route.id.toString()}>
 									{route.name}
 								</option>
 							))
@@ -166,7 +196,7 @@ export default function AdminTrainPage() {
 					<button
 						className="flex items-center justify-center p-2 bg-primary-900 text-white rounded-[4px] shadow-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
 						onClick={handleOpenAdd}
-						disabled={routeList.length === 0}
+						disabled={routes.length === 0}
 					>
 						<Plus className="w-5 h-5 mr-2" />
 						Add New Train
@@ -186,7 +216,7 @@ export default function AdminTrainPage() {
 								<TrainCard
 									key={train.id}
 									train={train}
-									route={routesMap.get(train.routeId)}
+									route={routesMap.get(train.routeId.toString())}
 									onEdit={handleOpenEdit}
 									onDelete={handleDelete}
 									onViewJourney={handleOpenJourney}
@@ -203,11 +233,11 @@ export default function AdminTrainPage() {
 				)}
 
 				{/* --- Modals --- */}
-				{isFormOpen && (
+				{isFormOpen && routeForModal && (
 					<TrainFormDialog
 						trainToEdit={selectedTrain}
 						route={routeForModal}
-						onClose={() => setIsFormOpen(false)}
+						onClose={handleCloseForm}
 					/>
 				)}
 

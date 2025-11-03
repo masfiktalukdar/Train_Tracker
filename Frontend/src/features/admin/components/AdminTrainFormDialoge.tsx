@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, X } from "lucide-react";
 import type { TrainStoppage } from "@/types/dataModels";
 import type { Station } from "@/types/dataModels";
@@ -9,33 +9,24 @@ import type {
 	UpdateTrainData,
 } from "@/features/admin/api/trainsApi";
 import { createTrain, updateTrain } from "@/features/admin/api/trainsApi";
-import { getRoutes, ApiRoute } from "@/features/admin/api/routesApi";
+// No longer need getRoutes, just the type
+import type { ApiRoute } from "@/features/admin/api/routesApi";
 
 type TrainFormDialogProps = {
 	trainToEdit: ApiTrain | null;
-	selectedRouteId: number; // The route to add/edit the train on
+	route: ApiRoute | undefined; // The route object is passed in
 	onClose: () => void;
 };
 
 export default function TrainFormDialog({
 	trainToEdit,
-	selectedRouteId,
+	route,
 	onClose,
 }: TrainFormDialogProps) {
 	const queryClient = useQueryClient();
 
-	// Fetch all routes to get station data for the selected route
-	const { data: routes = [] } = useQuery<ApiRoute[]>({
-		queryKey: ["routes"],
-		queryFn: getRoutes,
-	});
-
-	// Find the specific route object
-	const selectedRoute = useMemo(
-		() => routes.find((r) => r.id === selectedRouteId),
-		[routes, selectedRouteId]
-	);
-
+	// The route object is now passed as a prop
+	const selectedRoute = route;
 	const routeStations = selectedRoute?.stations || [];
 
 	// --- Local Form State ---
@@ -67,7 +58,7 @@ export default function TrainFormDialog({
 		onError: (err) => console.error("Failed to update train:", err),
 	});
 
-	// --- Handlers (Your existing logic is great) ---
+	// --- Handlers ---
 	const handleStoppageToggle = (station: Station) => {
 		const isStoppage = stoppages.some((s) => s.stationId === station.stationId);
 		if (isStoppage) {
@@ -112,10 +103,9 @@ export default function TrainFormDialog({
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
-		if (!name || !code || stoppages.length <= 1) {
-			// Use console.warn or a state error, not alert
+		if (!selectedRoute || !name || !code || stoppages.length <= 1) {
 			console.warn(
-				"Please fill in all fields and select at least two stoppages."
+				"Please select a valid route, fill in all fields, and select at least two stoppages."
 			);
 			return;
 		}
@@ -125,7 +115,7 @@ export default function TrainFormDialog({
 			const trainData: UpdateTrainData = {
 				name,
 				code,
-				route_id: selectedRouteId,
+				route_id: selectedRoute.id,
 				direction,
 				stoppages,
 			};
@@ -135,7 +125,7 @@ export default function TrainFormDialog({
 			const trainData: NewTrainData = {
 				name,
 				code,
-				route_id: selectedRouteId,
+				route_id: selectedRoute.id,
 				direction,
 				stoppages,
 			};

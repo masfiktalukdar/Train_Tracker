@@ -4,34 +4,29 @@ import supabase from "../config/supabaseClient.ts";
 import adminAuth from "../middleware/adminAuth.ts";
 const router = Router();
 
+// This middleware ensures only authenticated admins can access any route in this file.
 router.use(adminAuth);
 
-// === NEW DASHBOARD STATS ENDPOINT ===
+// === DASHBOARD STATS ===
 router.get("/dashboard/stats", async (req: Request, res: Response) => {
   try {
     // --- 1. Get all counts in parallel ---
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-
     const [
       totalUsersData,
       totalRoutesData,
       totalStationsData,
       totalTrainsData,
     ] = await Promise.all([
-      // a. Total registered users
       supabase.from("profiles").select("*", { count: "exact", head: true }),
-      // b. Total routes
       supabase.from("routes").select("*", { count: "exact", head: true }),
-      // c. Total stations
       supabase.from("stations").select("*", { count: "exact", head: true }),
-      // d. Total trains
       supabase.from("trains").select("*", { count: "exact", head: true }),
     ]);
 
     // --- 2. Get user registration data for the chart ---
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-    sixMonthsAgo.setDate(1); // Start from the beginning of that month
+    sixMonthsAgo.setDate(1);
 
     const { data: users, error: usersError } = await supabase
       .from("profiles")
@@ -47,15 +42,13 @@ router.get("/dashboard/stats", async (req: Request, res: Response) => {
       year: "2-digit",
     });
 
-    // Initialize the map with the last 6 months
     for (let i = 5; i >= 0; i--) {
       const date = new Date();
       date.setMonth(date.getMonth() - i);
-      const key = monthFormatter.format(date); // "Oct '25", "Sep '25"
+      const key = monthFormatter.format(date);
       counts.set(key, 0);
     }
 
-    // Iterate over fetched users and increment counts
     if (users) {
       for (const user of users) {
         const key = monthFormatter.format(new Date(user.created_at));
@@ -65,14 +58,12 @@ router.get("/dashboard/stats", async (req: Request, res: Response) => {
       }
     }
 
-    // Format for the chart
     const chartData = Array.from(counts.entries()).map(
       ([date, count]) => ({
         date: date,
         registrationCount: count,
-        // Add month label logic for chart
         month: date.split(" ")[0],
-        showMonthLabel: true, // We'll let the frontend re-process this
+        showMonthLabel: true,
       })
     );
 
@@ -98,12 +89,9 @@ router.get("/dashboard/stats", async (req: Request, res: Response) => {
 
 
 // === LIVE STATUS API ===
-
 router.post('/status/update', async (req: Request, res: Response) => {
   const { train_id, date, lap_completed, arrivals, last_completed_station_id } = req.body;
 
-  // The frontend sends a JSON array for 'arrivals'.
-  // Supabase client handles stringifying it for the 'jsonb' column.
   const { data, error } = await supabase
     .from('daily_status')
     .upsert(
@@ -111,7 +99,7 @@ router.post('/status/update', async (req: Request, res: Response) => {
         train_id,
         date,
         lap_completed,
-        arrivals, // Send the array directly
+        arrivals,
         last_completed_station_id,
       },
       {
@@ -126,8 +114,6 @@ router.post('/status/update', async (req: Request, res: Response) => {
     return res.status(500).json({ error: error.message });
   }
 
-  // CRITICAL: Parse the 'arrivals' JSON before sending back
-  // (As done in the public route, for consistency)
   if (data && data.arrivals && typeof data.arrivals === 'string') {
     try {
       data.arrivals = JSON.parse(data.arrivals);
@@ -139,6 +125,157 @@ router.post('/status/update', async (req: Request, res: Response) => {
   }
 
   res.json(data);
+});
+
+
+// =================================================================
+// --- NEW: MISSING STATION ROUTES ---
+// =================================================================
+
+// CREATE a new station
+router.post('/stations', async (req: Request, res: Response) => {
+  const { stationId, stationName, stationLocation, stationLocationURL } = req.body;
+
+  // Map frontend camelCase to backend snake_case
+  const { data, error } = await supabase
+    .from('stations')
+    .insert({
+      station_id: stationId,
+      station_name: stationName,
+      station_location: stationLocation,
+      station_location_url: stationLocationURL,
+    })
+    .select()
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.status(201).json(data);
+});
+
+// UPDATE an existing station
+router.put('/stations/:id', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const updates = req.body; // Frontend already sends snake_case for updates
+
+  const { data, error } = await supabase
+    .from('stations')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+// DELETE a station
+router.delete('/stations/:id', async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  const { error } = await supabase
+    .from('stations')
+    .delete()
+    .eq('id', id);
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.status(204).send(); // 204 No Content
+});
+
+
+// =================================================================
+// --- NEW: MISSING ROUTE ROUTES ---
+// =================================================================
+
+// CREATE a new route
+router.post('/routes', async (req: Request, res: Response) => {
+  const { name, stations } = req.body;
+
+  const { data, error } = await supabase
+    .from('routes')
+    .insert({ name, stations }) // Body matches table structure
+    .select()
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.status(201).json(data);
+});
+
+// UPDATE an existing route
+router.put('/routes/:id', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { name, stations } = req.body; // Body matches table structure
+
+  const { data, error } = await supabase
+    .from('routes')
+    .update({ name, stations })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+// DELETE a route
+router.delete('/routes/:id', async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  const { error } = await supabase
+    .from('routes')
+    .delete()
+    .eq('id', id);
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.status(204).send(); // 204 No Content
+});
+
+
+// =================================================================
+// --- NEW: MISSING TRAIN ROUTES ---
+// =================================================================
+
+// CREATE a new train
+router.post('/trains', async (req: Request, res: Response) => {
+  // Frontend sends data that matches snake_case table, so no mapping needed
+  const { name, code, direction, route_id, stoppages } = req.body;
+
+  const { data, error } = await supabase
+    .from('trains')
+    .insert({ name, code, direction, route_id, stoppages })
+    .select()
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.status(201).json(data);
+});
+
+// UPDATE an existing train
+router.put('/trains/:id', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const updates = req.body; // Frontend sends partial data matching table
+
+  const { data, error } = await supabase
+    .from('trains')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+// DELETE a train
+router.delete('/trains/:id', async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  const { error } = await supabase
+    .from('trains')
+    .delete()
+    .eq('id', id);
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.status(204).send(); // 204 No Content
 });
 
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, Loader2 } from "lucide-react";
 import TrainCard from "../components/AdminTrainCart";
@@ -16,7 +16,8 @@ export default function AdminTrainPage() {
 	const queryClient = useQueryClient();
 
 	// --- Local UI State ---
-	const [selectedRouteId, setSelectedRouteId] = useState<string>("all");
+	// No "all" - default to null until routes load
+	const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
 	const [searchTerm, setSearchTerm] = useState("");
 	const [isFormOpen, setIsFormOpen] = useState(false);
 	const [isJourneyOpen, setIsJourneyOpen] = useState(false);
@@ -36,6 +37,14 @@ export default function AdminTrainPage() {
 		queryKey: ["trains"],
 		queryFn: getTrains,
 	});
+
+	// --- Effect to set default route ---
+	// This runs when routes load and sets the dropdown to the first route
+	useEffect(() => {
+		if (!isLoadingRoutes && routes.length > 0 && !selectedRouteId) {
+			setSelectedRouteId(routes[0].id.toString());
+		}
+	}, [isLoadingRoutes, routes, selectedRouteId]);
 
 	const isLoading = isLoadingRoutes || isLoadingTrains;
 
@@ -57,9 +66,10 @@ export default function AdminTrainPage() {
 
 	const filteredTrains = useMemo(() => {
 		return trains.filter((train) => {
-			const routeMatch =
-				selectedRouteId === "all" ||
-				train.routeId.toString() === selectedRouteId;
+			// If no route is selected (e.g., still loading), show no trains
+			if (!selectedRouteId) return false;
+
+			const routeMatch = train.routeId.toString() === selectedRouteId;
 			const searchMatch =
 				train.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
 				train.code.toLowerCase().includes(searchTerm.toLowerCase());
@@ -69,17 +79,13 @@ export default function AdminTrainPage() {
 
 	// --- Handlers ---
 	const handleOpenAdd = () => {
-		// FIX: This 'if' block was causing a state race condition.
-		// We remove it entirely. The logic to pick the first route
-		// is already handled by 'selectedRouteForModal'.
-		/*
-		if (selectedRouteId === "all" && routeList.length > 0) {
-			setSelectedRouteId(routeList[0].id.toString());
-		} else 
-		*/
 		if (routeList.length === 0) {
 			console.warn("Please create a route first.");
 			return;
+		}
+		// Ensure a route is selected before opening
+		if (!selectedRouteId && routeList.length > 0) {
+			setSelectedRouteId(routeList[0].id.toString());
 		}
 		setSelectedTrain(null);
 		setIsFormOpen(true);
@@ -97,20 +103,25 @@ export default function AdminTrainPage() {
 	};
 
 	const handleDelete = (trainId: number) => {
-		// Re-enabling confirm() as it's the intended behavior for now.
-		// A custom modal is better, but this is functional.
 		if (confirm("Are you sure you want to delete this train?")) {
 			deleteTrainMutation.mutate(trainId);
 		}
 	};
 
-	// This variable now correctly handles all cases without a race condition.
-	// 1. If "all" is selected -> use first route ID.
-	// 2. If a specific route is selected -> use that route ID.
-	const selectedRouteForModal =
-		selectedRouteId === "all" && routeList.length > 0
-			? routeList[0].id
-			: parseInt(selectedRouteId, 10);
+	// This logic determines which route to pass to the modal
+	const routeForModal = useMemo(() => {
+		if (selectedTrain) {
+			// If EDITING, find the route associated with the train
+			return routesMap.get(selectedTrain.routeId);
+		}
+
+		// If ADDING, find the route selected in the dropdown
+		if (!selectedRouteId) {
+			// This handles the case where the modal is opened before useEffect runs
+			return routeList.length > 0 ? routeList[0] : undefined;
+		}
+		return routesMap.get(parseInt(selectedRouteId, 10));
+	}, [selectedTrain, selectedRouteId, routesMap, routeList]);
 
 	const selectedRouteForJourney = selectedTrain
 		? routesMap.get(selectedTrain.routeId)
@@ -136,16 +147,21 @@ export default function AdminTrainPage() {
 						/>
 					</div>
 					<select
-						className="w-full p-2 border rounded-[4px] shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-						value={selectedRouteId}
+						className="w-full p-2 border rounded-[4px] shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+						value={selectedRouteId || ""} // Handle null state
 						onChange={(e) => setSelectedRouteId(e.target.value)}
+						disabled={routeList.length === 0} // Disable if no routes
 					>
-						<option value="all">All Routes</option>
-						{routeList.map((route) => (
-							<option key={route.id} value={route.id}>
-								{route.name}
-							</option>
-						))}
+						{/* No "All Routes" option */}
+						{routeList.length === 0 ? (
+							<option value="">No routes available</option>
+						) : (
+							routeList.map((route) => (
+								<option key={route.id} value={route.id}>
+									{route.name}
+								</option>
+							))
+						)}
 					</select>
 					<button
 						className="flex items-center justify-center p-2 bg-primary-900 text-white rounded-[4px] shadow-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
@@ -180,7 +196,7 @@ export default function AdminTrainPage() {
 							<p className="text-center text-gray-500 py-10">
 								{trains.length === 0
 									? "No trains created yet."
-									: "No trains match your search."}
+									: "No trains found for this route."}
 							</p>
 						)}
 					</div>
@@ -190,7 +206,7 @@ export default function AdminTrainPage() {
 				{isFormOpen && (
 					<TrainFormDialog
 						trainToEdit={selectedTrain}
-						selectedRouteId={selectedRouteForModal}
+						route={routeForModal}
 						onClose={() => setIsFormOpen(false)}
 					/>
 				)}

@@ -22,7 +22,23 @@ router.get('/routes', async (req, res) => {
     .order('created_at', { ascending: true });
 
   if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+
+  // --- FIX: Parse the 'stations' JSON for each route ---
+  const parsedData = data.map(route => {
+    let stations = [];
+    if (route.stations && typeof route.stations === 'string') {
+      try {
+        stations = JSON.parse(route.stations);
+      } catch (e) {
+        console.error(`Failed to parse stations for route ${route.id}:`, e);
+      }
+    } else if (Array.isArray(route.stations)) {
+      stations = route.stations;
+    }
+    return { ...route, stations };
+  });
+
+  res.json(parsedData);
 });
 
 // --- GET ALL TRAINS ---
@@ -33,7 +49,23 @@ router.get('/trains', async (req, res) => {
     .order('created_at', { ascending: true });
 
   if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+
+  // --- FIX: Parse the 'stoppages' JSON for each train ---
+  const parsedTrains = data.map(train => {
+    let stoppages = [];
+    if (train.stoppages && typeof train.stoppages === 'string') {
+      try {
+        stoppages = JSON.parse(train.stoppages);
+      } catch (e) {
+        console.error(`Failed to parse stoppages for train ${train.id}:`, e);
+      }
+    } else if (Array.isArray(train.stoppages)) {
+      stoppages = train.stoppages;
+    }
+    return { ...train, stoppages };
+  });
+
+  res.json(parsedTrains);
 });
 
 // --- GET LIVE STATUS FOR A SINGLE TRAIN (FOR TODAY) ---
@@ -112,3 +144,4 @@ router.get('/history/:trainId', async (req, res) => {
 });
 
 export default router;
+

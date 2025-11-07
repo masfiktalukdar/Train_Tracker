@@ -31,7 +31,7 @@ const DEFAULT_FALLBACK_MS = 1000 * 60 * 30; // 30 min fallback if no data
  * The core hook for calculating a train's predicted arrival times.
  */
 export function useTrainPrediction(
-  train?: ApiTrain,
+  train?: ApiTrain | null, // <--- FIX: Allow null
   route?: ApiRoute,
   status?: DailyTrainStatus | null
 ) {
@@ -217,7 +217,8 @@ export function useTrainPrediction(
       !atStationInfo &&
       lastArrival
     ) {
-      const departureTime = new Date(lastArrival.arrivedAt).getTime() + FIVE_MINUTES_MS;
+      const departureTime =
+        new Date(lastArrival.arrivedAt).getTime() + FIVE_MINUTES_MS;
 
       setCurrentTravelInfo({
         from: currentStationName,
@@ -232,7 +233,8 @@ export function useTrainPrediction(
         setWarning("Train is running late. Predictions may be inaccurate.");
       }
     }
-  }, [train, route, status, history, now, atStationInfo]); // Re-run when 'now' changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [train, route, status, history, now]); // atStationInfo is intentionally omitted to prevent infinite loop
 
   return {
     predictions,

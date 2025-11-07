@@ -1,14 +1,15 @@
-import type { TrainHistoryRecord } from '@features/user/api/historyApi';
+import type { TrainHistoryRecord } from "@features/user/api/historyApi";
+import type { Station, TrainStoppage } from "@/types/dataModels";
 
-const AVG_TRAVEL_TIME = 'AVG_TRAVEL_TIME';
+const AVG_TRAVEL_TIME = "AVG_TRAVEL_TIME";
 const CACHE_TTL = 1000 * 60 * 60; // 1 hour cache
 
 type TravelTimeCache = {
   [key: string]: {
     average: number;
     timestamp: number;
-  }
-}
+  };
+};
 
 /**
  * Calculates the average travel time in milliseconds between two stations from 7-day history.
@@ -69,7 +70,10 @@ export function getAverageTravelTime(
 
   // Save to cache
   try {
-    localStorage.setItem(cacheKey, JSON.stringify({ average, timestamp: Date.now() }));
+    localStorage.setItem(
+      cacheKey,
+      JSON.stringify({ average, timestamp: Date.now() })
+    );
   } catch (e) {
     console.warn("Failed to write to cache", e);
   }
@@ -82,13 +86,12 @@ export function getAverageTravelTime(
  * This is based on the default schedule.
  */
 export function getDefaultTravelTime(
-  stoppages: { stationId: string, upArrivalTime: string, downArrivalTime: string }[],
+  stoppages: TrainStoppage[],
   stationA_id: string,
   stationB_id: string
 ): number | null {
-
-  const stoppageA = stoppages.find(s => s.stationId === stationA_id);
-  const stoppageB = stoppages.find(s => s.stationId === stationB_id);
+  const stoppageA = stoppages.find((s) => s.stationId === stationA_id);
+  const stoppageB = stoppages.find((s) => s.stationId === stationB_id);
 
   if (!stoppageA || !stoppageB) return null;
 
@@ -97,20 +100,20 @@ export function getDefaultTravelTime(
 
   let timeA = parseTimeToToday(stoppageA.upArrivalTime);
   let timeB = parseTimeToToday(stoppageB.upArrivalTime);
-  if (timeB > timeA) return timeB - timeA;
+  if (timeA > 0 && timeB > 0 && timeB > timeA) return timeB - timeA;
 
   timeA = parseTimeToToday(stoppageA.downArrivalTime);
   timeB = parseTimeToToday(stoppageB.downArrivalTime);
-  if (timeB > timeA) return timeB - timeA;
+  if (timeA > 0 && timeB > 0 && timeB > timeA) return timeB - timeA;
 
   // Handle midnight wrap-around (simplified)
   timeA = parseTimeToToday(stoppageA.upArrivalTime);
   timeB = parseTimeToToday(stoppageB.upArrivalTime, true); // Add a day
-  if (timeB > timeA) return timeB - timeA;
+  if (timeA > 0 && timeB > 0 && timeB > timeA) return timeB - timeA;
 
   timeA = parseTimeToToday(stoppageA.downArrivalTime);
   timeB = parseTimeToToday(stoppageB.downArrivalTime, true); // Add a day
-  if (timeB > timeA) return timeB - timeA;
+  if (timeA > 0 && timeB > 0 && timeB > timeA) return timeB - timeA;
 
   return null;
 }
@@ -119,7 +122,13 @@ export function getDefaultTravelTime(
  * Helper to parse "HH:mm" string to a Date object for today.
  */
 export function parseTimeToToday(time: string, addDay = false): number {
-  const [hours, minutes] = time.split(':').map(Number);
+  if (!time || !time.includes(":")) {
+    return 0; // Return 0 or handle as an error
+  }
+  const [hours, minutes] = time.split(":").map(Number);
+  if (isNaN(hours) || isNaN(minutes)) {
+    return 0;
+  }
   const date = new Date();
   date.setHours(hours, minutes, 0, 0);
   if (addDay) {
@@ -131,7 +140,11 @@ export function parseTimeToToday(time: string, addDay = false): number {
 /**
  * Helper to get the full round-trip journey path.
  */
-export function getFullJourney(routeStations: { stationId: string }[], trainStoppages: { stationId: string }[], direction: 'up' | 'down') {
+export function getFullJourney(
+  routeStations: Station[],
+  trainStoppages: TrainStoppage[],
+  direction: "up" | "down"
+): Station[] {
   const stoppageMap = new Map(trainStoppages.map((s) => [s.stationId, s]));
   const actualStoppagesOnRoute = routeStations.filter((station) =>
     stoppageMap.has(station.stationId)

@@ -6,6 +6,7 @@ import type { DailyTrainStatus } from "@/features/admin/api/statusApi";
 // --- FIX: Corrected import paths ---
 import { getFullJourney } from "../utils/predictionLogic";
 import { format24HourTime } from "../utils/formatTime";
+import type { Station } from "@/types/dataModels"; // <-- This is correct
 
 type TrainCardProps = {
 	train: ApiTrain;
@@ -33,7 +34,8 @@ function getScheduledTime(
 }
 
 export default function TrainCard({ train, route, status }: TrainCardProps) {
-	const journey = route
+	// <-- This is correct
+	const journey: Station[] = route
 		? getFullJourney(route.stations, train.stoppages, train.direction)
 		: [];
 
@@ -105,7 +107,10 @@ export default function TrainCard({ train, route, status }: TrainCardProps) {
 		} else {
 			// This logic assumes a 5-minute stop.
 			// For the card view, we'll just show "En Route" if it has an arrival.
-			statusText = `En Route to ${nextStation.stationName.split(" ")[0]}`;
+			// <-- This is correct
+			statusText = `En Route to ${
+				nextStation ? nextStation.stationName.split(" ")[0] : "End"
+			}`;
 			statusDetail = `Last seen at ${currentStation.stationName.split(" ")[0]}`;
 			StatusIcon = Train;
 			iconColor = "text-blue-600";

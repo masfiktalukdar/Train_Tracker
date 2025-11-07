@@ -43,11 +43,11 @@ export type TrainStoppage = {
  * This type was originally in adminRoutesStore.ts
  */
 export type Train = {
-  id: string;
+  id: string; // --- FIX: Was number
   name: string;
   code: string;
-  routeId: string;
-  direction: 'up' | 'down';
+  routeId: string; // --- FIX: Was string (which was correct)
+  direction: "up" | "down";
   stoppages: TrainStoppage[];
 };
 
@@ -59,10 +59,11 @@ export type Train = {
 
 /**
  * The full Station object as it comes from the Supabase API.
- * Includes database-generated 'id' and 'created_at'.
+ * Your schema says 'id' is UUID, but your code uses a numeric ID.
+ * We will trust the *code's* implementation for stations.
  */
 export type ApiStation = Station & {
-  id: number;
+  id: number; // This is the numeric primary key
   created_at: string;
 };
 
@@ -70,7 +71,7 @@ export type ApiStation = Station & {
  * The data needed to CREATE a new station.
  * 'stationId' is omitted because the backend creates it.
  */
-export type NewStationData = Omit<Station, 'stationId'>;
+export type NewStationData = Omit<Station, "stationId">;
 
 /**
  * The data needed to UPDATE a station.
@@ -78,15 +79,14 @@ export type NewStationData = Omit<Station, 'stationId'>;
  */
 export type UpdateStationData = Partial<NewStationData>;
 
-
 // --- Route Types ---
 
 /**
  * The full Route object as it comes from the Supabase API.
- * 'id' is a number from the DB.
+ * 'id' is a string (UUID) from the DB.
  */
-export type ApiRoute = Omit<Route, 'id'> & {
-  id: number;
+export type ApiRoute = Omit<Route, "id"> & {
+  id: string; // --- FIX: Was number
   created_at: string;
 };
 
@@ -94,19 +94,21 @@ export type ApiRoute = Omit<Route, 'id'> & {
 
 /**
  * The full Train object as it comes from the Supabase API.
- * 'id' is a number and 'route_id' is a number.
+ * 'id' is a string (UUID) and 'route_id' is a string (UUID).
  */
-export type ApiTrain = Omit<Train, 'id' | 'routeId'> & {
-  id: number;
-  route_id: number; // The backend uses snake_case for foreign keys
+export type ApiTrain = Omit<Train, "id" | "routeId"> & {
+  id: string; // --- FIX: Was number
+  route_id: string; // --- FIX: Was number
   created_at: string;
+  // --- ADD: This makes mapping easier ---
+  routeId: string; // This will be mapped from route_id
 };
 
 /**
  * The data needed to CREATE a new train.
  */
-export type NewTrainData = Omit<Train, 'id' | 'routeId'> & {
-  route_id: number; // Must provide the numerical route_id
+export type NewTrainData = Omit<Train, "id" | "routeId"> & {
+  route_id: string; // --- FIX: Was number
 };
 
 /**
@@ -130,13 +132,10 @@ export type StationArrivalRecord = {
 /**
  * The full Daily Status object as it comes from the Supabase API.
  */
-export type ApiDailyStatus = {
-  id: number;
-  train_id: number;
+export type DailyTrainStatus = {
+  train_id: string; // --- FIX: Was number
   date: string; // "YYYY-MM-DD"
   lap_completed: boolean;
   arrivals: StationArrivalRecord[];
   last_completed_station_id: string | null;
-  created_at: string;
 };
-

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { ApiTrain } from "@/features/admin/api/trainsApi";
 import type { ApiRoute } from "@/features/admin/api/routesApi";
@@ -10,6 +10,8 @@ import {
   getFullJourney,
   parseTimeToToday, // Import the helper
 } from "@features/user/utils/predictionLogic";
+// --- ADDED: Import Station type ---
+import type { Station } from "@/types/dataModels";
 
 export type Prediction = {
   stationId: string;
@@ -24,6 +26,12 @@ export type AtStationInfo = {
   departureTime: number; // Timestamp
 };
 
+// --- ADDED: New type for "At Turnaround" info ---
+export type AtTurnaroundInfo = {
+  stationName: string;
+  departureTime: number; // Timestamp
+};
+
 const FIVE_MINUTES_MS = 1000 * 60 * 5;
 const DEFAULT_FALLBACK_MS = 1000 * 60 * 30; // 30 min fallback if no data
 
@@ -31,7 +39,7 @@ const DEFAULT_FALLBACK_MS = 1000 * 60 * 30; // 30 min fallback if no data
  * The core hook for calculating a train's predicted arrival times.
  */
 export function useTrainPrediction(
-  train?: ApiTrain | null, // <--- FIX: Allow null
+  train?: ApiTrain | null,
   route?: ApiRoute,
   status?: DailyTrainStatus | null
 ) {
@@ -42,9 +50,12 @@ export function useTrainPrediction(
     startTime: number;
     endTime: number;
   } | null>(null);
-  const [atStationInfo, setAtStationInfo] = useState<AtStationInfo | null>(null); // NEW
+  const [atStationInfo, setAtStationInfo] = useState<AtStationInfo | null>(null);
+  // --- ADDED: State for turnaround info ---
+  const [atTurnaroundInfo, setAtTurnaroundInfo] =
+    useState<AtTurnaroundInfo | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
-  const [now, setNow] = useState(() => Date.now()); // NEW: Current time state
+  const [now, setNow] = useState(() => Date.now());
 
   // 1. Fetch 7-day history for this train
   const { data: history, isLoading: isLoadingHistory } = useQuery({
@@ -61,20 +72,45 @@ export function useTrainPrediction(
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    // Wait for all data to be loaded
-    if (!train || !route || !history || status === undefined) {
-      setPredictions([]);
-      setCurrentTravelInfo(null);
-      setAtStationInfo(null);
-      return;
+  // --- ADDED: Memoize journey calculations ---
+  const {
+    journey,
+    firstLegLength,
+    turnaroundStation,
+  }: {
+    journey: Station[];
+    firstLegLength: number;
+    turnaroundStation: Station | undefined;
+  } = useMemo(() => {
+    if (!train || !route) {
+      return { journey: [], firstLegLength: 0, turnaroundStation: undefined };
     }
-
-    const journey = getFullJourney(
+    const fullJourney: Station[] = getFullJourney(
       route.stations,
       train.stoppages,
       train.direction
     );
+    const firstLegStations = route.stations.filter((station) =>
+      train.stoppages.some((ts) => ts.stationId === station.stationId)
+    );
+    const legLength = firstLegStations.length;
+    return {
+      journey: fullJourney,
+      firstLegLength: legLength,
+      turnaroundStation: fullJourney[legLength - 1],
+    };
+  }, [train, route]);
+
+  useEffect(() => {
+    // Wait for all data to be loaded
+    if (!train || !route || !history || status === undefined || !turnaroundStation) {
+      setPredictions([]);
+      setCurrentTravelInfo(null);
+      setAtStationInfo(null);
+      setAtTurnaroundInfo(null); // --- ADDED: Reset turnaround state
+      return;
+    }
+
     if (journey.length === 0) return;
 
     // --- LOGIC REWRITE ---
@@ -83,6 +119,7 @@ export function useTrainPrediction(
     setWarning(null);
     setCurrentTravelInfo(null);
     setAtStationInfo(null);
+    setAtTurnaroundInfo(null); // --- ADDED: Reset turnaround state
 
     const lastArrivalIndex = (status?.arrivals.length || 0) - 1;
     const lastArrival = status?.arrivals[lastArrivalIndex];
@@ -96,8 +133,21 @@ export function useTrainPrediction(
       const lastArrivalTime = new Date(lastArrival.arrivedAt).getTime();
       currentStationName = lastArrival.stationName;
 
-      if (now - lastArrivalTime < FIVE_MINUTES_MS) {
-        // --- State: AT STATION ---
+      // --- ADDED: Check for Turnaround ---
+      const isAtTurnaround =
+        lastArrival.stationId === turnaroundStation.stationId;
+
+      if (isAtTurnaround && lastArrivalIndex === firstLegLength - 1) {
+        // --- State: AT TURNAROUND (only triggers on first leg arrival) ---
+        const departureTime = lastArrivalTime + FIVE_MINUTES_MS;
+        setAtTurnaroundInfo({
+          stationName: currentStationName,
+          departureTime: departureTime,
+        });
+        predictionStartTime = departureTime; // Predictions start from departure time
+        predictionStartIndex = lastArrivalIndex + 1; // Predict from the *next* station
+      } else if (now - lastArrivalTime < FIVE_MINUTES_MS) {
+        // --- State: AT STATION (and not turnaround) ---
         // (Less than 5 mins have passed since arrival)
         const departureTime = lastArrivalTime + FIVE_MINUTES_MS;
         setAtStationInfo({
@@ -199,7 +249,12 @@ export function useTrainPrediction(
       lastArrivalTimeForLoop = predictedTime.getTime();
 
       // Set progress bar info (only if we are "en route")
-      if (i === predictionStartIndex && !atStationInfo && lastArrival) {
+      if (
+        i === predictionStartIndex &&
+        !atStationInfo &&
+        !atTurnaroundInfo && // --- ADDED: Check
+        lastArrival
+      ) {
         nextStationForProgress =
           route.stations.find((s) => s.stationId === currentStation.stationId)
             ?.stationName || "Unknown";
@@ -215,6 +270,7 @@ export function useTrainPrediction(
       predictedEndTimeForProgress &&
       !status?.lap_completed &&
       !atStationInfo &&
+      !atTurnaroundInfo && // --- ADDED: Check
       lastArrival
     ) {
       const departureTime =
@@ -234,12 +290,22 @@ export function useTrainPrediction(
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [train, route, status, history, now]); // atStationInfo is intentionally omitted to prevent infinite loop
+  }, [
+    train,
+    route,
+    status,
+    history,
+    now,
+    journey,
+    turnaroundStation,
+    firstLegLength,
+  ]); // Added new dependencies
 
   return {
     predictions,
     currentTravelInfo,
-    atStationInfo, // NEW
+    atStationInfo,
+    atTurnaroundInfo, // --- ADDED: Export turnaround state
     warning,
     isLoading: isLoadingHistory,
   };

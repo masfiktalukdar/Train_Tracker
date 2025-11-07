@@ -118,7 +118,7 @@ export function getDefaultTravelTime(
 /**
  * Helper to parse "HH:mm" string to a Date object for today.
  */
-function parseTimeToToday(time: string, addDay = false): number {
+export function parseTimeToToday(time: string, addDay = false): number {
   const [hours, minutes] = time.split(':').map(Number);
   const date = new Date();
   date.setHours(hours, minutes, 0, 0);

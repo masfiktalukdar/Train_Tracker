@@ -6,18 +6,102 @@ import {
 	getDailyStatus,
 	DailyTrainStatus,
 } from "@/features/admin/api/statusApi";
-import { useTrainPrediction } from "@features/user/hooks/useTrainPrediction";
-import LoadingSpinner from "@features/user/components/loadingSpinner";
-import ErrorDisplay from "@features/user/components/errorDisplay";
-import TrainProgressBar from "@features/user/components/trainProgressBar";
+import { useTrainPrediction } from "@/features/user/hooks/useTrainPrediction";
+import LoadingSpinner from "@/features/user/components/loadingSpinner";
+import ErrorDisplay from "@/features/user/components/errorDisplay";
+import TrainProgressBar from "@/features/user/components/trainProgressBar";
 import {
 	CheckCircle,
 	AlertTriangle,
 	Calendar,
 	Info,
-  X,
+	X,
+	MapPin,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
+// --- FIX: Corrected import paths to use aliases ---
+import {
+	format24HourTime,
+	formatTimeFromDate,
+} from "@/features/user/utils/formatTime";
+import { getFullJourney } from "@/features/user/utils/predictionLogic";
+import { Station } from "@/types/dataModels";
+
+// --- NEW COMPONENT ---
+/**
+ * Renders the "At Station" status box
+ */
+function AtStationStatus({
+	stationName,
+	departureTime,
+}: {
+	stationName: string;
+	departureTime: number;
+}) {
+	return (
+		<div className="flex flex-col items-center justify-center p-6 text-center">
+			<MapPin className="h-16 w-16 text-green-600 mb-4" />
+			<h2 className="text-2xl font-bold text-gray-800">
+				At {stationName.split(" ")[0]}
+			</h2>
+			<p className="text-gray-600 mt-1 text-lg">
+				Departs at ~{" "}
+				<span className="font-semibold text-green-700 font-mono">
+					{formatTimeFromDate(departureTime)}
+				</span>
+			</p>
+		</div>
+	);
+}
+
+// --- NEW COMPONENT (FOR FINAL STATION) ---
+function AtFinalStationStatus({ stationName }: { stationName: string }) {
+	return (
+		<div className="flex flex-col items-center justify-center p-6 text-center">
+			<MapPin className="h-16 w-16 text-green-600 mb-4" />
+			<h2 className="text-2xl font-bold text-gray-800">
+				At {stationName.split(" ")[0]}
+			</h2>
+			<p className="text-gray-600 mt-1 text-lg">Final destination reached.</p>
+		</div>
+	);
+}
+
+// --- NEW COMPONENT ---
+/**
+ * Renders the "Pending Departure" status box
+ */
+function PendingDepartureStatus({
+	train,
+	journey,
+}: {
+	train: ApiTrain;
+	// --- FIX: Corrected type ---
+	journey: Station[];
+}) {
+	const firstStoppage =
+		journey.length > 0
+			? train.stoppages.find((s) => s.stationId === journey[0].stationId)
+			: null;
+
+	const scheduledTime =
+		train.direction === "up"
+			? firstStoppage?.upArrivalTime
+			: firstStoppage?.downArrivalTime;
+
+	return (
+		<div className="flex flex-col items-center justify-center p-6 text-center">
+			<Info className="h-16 w-16 text-blue-500 mb-4" />
+			<h2 className="text-2xl font-bold text-gray-800">Pending Departure</h2>
+			<p className="text-gray-600 mt-1 text-lg">
+				Scheduled to start at ~{" "}
+				<span className="font-semibold text-blue-600 font-mono">
+					{format24HourTime(scheduledTime)}
+				</span>
+			</p>
+		</div>
+	);
+}
 
 export default function TrainStatusPage() {
 	const { trainId } = useParams<{ trainId: string }>();
@@ -30,7 +114,8 @@ export default function TrainStatusPage() {
 		queryKey: ["trains", trainId],
 		queryFn: async () => {
 			const trains = await getTrains();
-			return trains.find((t) => t.id.toString() === trainId);
+			// --- FIX: Compare string to string ---
+			return trains.find((t) => t.id === trainId);
 		},
 	});
 
@@ -51,20 +136,29 @@ export default function TrainStatusPage() {
 		refetch,
 	} = useQuery<DailyTrainStatus | null>({
 		queryKey: ["dailyStatus", trainId, new Date().toISOString().split("T")[0]],
+		// --- FIX: Pass trainId as a string, not Number(trainId) ---
 		queryFn: () =>
-			getDailyStatus(Number(trainId), new Date().toISOString().split("T")[0]),
+			getDailyStatus(trainId, new Date().toISOString().split("T")[0]),
 		enabled: !!trainId,
-		// Refetch status every 30 seconds
-		refetchInterval: 30000,
+		// Refetch status every 15 seconds
+		refetchInterval: 15000,
 	});
 
 	// Find the train's route object
 	const route = train ? routes.find((r) => r.id === train.routeId) : undefined;
 
+	// --- NEW: Get full journey path ---
+	// --- FIX: Added explicit Station[] type to satisfy compiler ---
+	const fullJourney: Station[] = useMemo(() => {
+		if (!train || !route) return [];
+		return getFullJourney(route.stations, train.stoppages, train.direction);
+	}, [train, route]);
+
 	// 4. Get predictions
 	const {
 		predictions,
 		currentTravelInfo,
+		atStationInfo, // <-- NEW
 		warning,
 		isLoading: isLoadingPrediction,
 	} = useTrainPrediction(train, route, status);
@@ -97,10 +191,12 @@ export default function TrainStatusPage() {
 							</span>
 							<div className="flex gap-4 font-mono text-sm">
 								<span className="text-green-600" title="Up Arrival">
-									UP: {stoppage.upArrivalTime}
+									{/* --- TIME FORMAT --- */}
+									UP: {format24HourTime(stoppage.upArrivalTime)}
 								</span>
 								<span className="text-red-600" title="Down Arrival">
-									DN: {stoppage.downArrivalTime}
+									{/* --- TIME FORMAT --- */}
+									DN: {format24HourTime(stoppage.downArrivalTime)}
 								</span>
 							</div>
 						</div>
@@ -140,6 +236,13 @@ export default function TrainStatusPage() {
 		? status.arrivals[status.arrivals.length - 1]
 		: null;
 
+	// --- FIX: Check for "At Final Station" state ---
+	const isAtFinalStation =
+		!atStationInfo &&
+		!currentTravelInfo &&
+		lastArrival &&
+		!status?.lap_completed;
+
 	return (
 		<>
 			{showSchedule && renderScheduleModal()}
@@ -154,7 +257,7 @@ export default function TrainStatusPage() {
 
 				{/* --- Lateness Warning --- */}
 				{warning && (
-					<div className="flex items-center gap-3 bg-yellow-100 border border-yellow-300 text-yellow-800 p-4 rounded-lg mb-6">
+					<div className="flex items-center gap-3 bg-red-100 border border-red-300 text-red-800 p-4 rounded-lg mb-6">
 						<AlertTriangle className="h-6 w-6 flex-shrink-0" />
 						<p className="font-medium">{warning}</p>
 					</div>
@@ -162,6 +265,7 @@ export default function TrainStatusPage() {
 
 				{/* --- Current Status / Progress Bar --- */}
 				<div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-6">
+					{/* --- NEW LOGIC --- */}
 					{status?.lap_completed ? (
 						<div className="flex flex-col items-center justify-center p-6 text-center">
 							<CheckCircle className="h-16 w-16 text-green-500 mb-4" />
@@ -172,24 +276,28 @@ export default function TrainStatusPage() {
 								This train has completed its lap for today.
 							</p>
 						</div>
+					) : atStationInfo ? (
+						<AtStationStatus
+							stationName={atStationInfo.stationName}
+							departureTime={atStationInfo.departureTime}
+						/>
 					) : currentTravelInfo ? (
 						<TrainProgressBar info={currentTravelInfo} />
+					) : isAtFinalStation ? (
+						<AtFinalStationStatus stationName={lastArrival!.stationName} />
 					) : (
-						<div className="flex flex-col items-center justify-center p-6 text-center">
-							<Info className="h-16 w-16 text-blue-500 mb-4" />
-							<h2 className="text-2xl font-bold text-gray-800">
-								Pending Departure
-							</h2>
-							<p className="text-gray-600 mt-1">
-								This train has not started its journey yet.
-							</p>
-						</div>
+						<PendingDepartureStatus train={train} journey={fullJourney} />
 					)}
-					{lastArrival && !status?.lap_completed && (
+					{/* --- END NEW LOGIC --- */}
+
+					{lastArrival && !status?.lap_completed && !atStationInfo && (
 						<p className="text-center text-sm text-gray-600 mt-4">
 							Last arrival:{" "}
 							<span className="font-bold">{lastArrival.stationName}</span> at{" "}
-							{new Date(lastArrival.arrivedAt).toLocaleTimeString()}
+							{/* --- TIME FORMAT --- */}
+							<span className="font-mono">
+								{formatTimeFromDate(lastArrival.arrivedAt)}
+							</span>
 						</p>
 					)}
 				</div>
@@ -215,7 +323,8 @@ export default function TrainStatusPage() {
 					) : predictions.length > 0 ? (
 						<div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
 							<ul className="divide-y divide-gray-200">
-								{predictions.map((p) => (
+								{/* --- SLICE(0, 3) ADDED --- */}
+								{predictions.slice(0, 3).map((p) => (
 									<li
 										key={p.stationId}
 										className="flex items-center justify-between p-4"
@@ -223,9 +332,13 @@ export default function TrainStatusPage() {
 										<span className="text-lg font-medium text-gray-800">
 											{p.stationName}
 										</span>
-										<div className="flex items-center gap-2">
+										<div className="flex items-center gap-3">
 											<span
-												className={`text-sm font-semibold ${p.type === "average" ? "text-blue-600" : "text-gray-500"}`}
+												className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+													p.type === "average"
+														? "bg-blue-100 text-blue-700"
+														: "bg-gray-100 text-gray-600"
+												}`}
 												title={
 													p.type === "average"
 														? "Based on 7-day average"
@@ -235,11 +348,8 @@ export default function TrainStatusPage() {
 												{p.type === "average" ? "Avg" : "Est"}
 											</span>
 											<span className="text-lg font-bold text-gray-900 font-mono">
-												~{" "}
-												{p.predictedTime?.toLocaleTimeString([], {
-													hour: "2-digit",
-													minute: "2-digit",
-												}) || "..."}
+												~ {/* --- TIME FORMAT --- */}
+												{formatTimeFromDate(p.predictedTime)}
 											</span>
 										</div>
 									</li>
@@ -249,7 +359,9 @@ export default function TrainStatusPage() {
 					) : (
 						<div className="text-center p-10 bg-white rounded-xl shadow-lg border border-gray-200">
 							<p className="text-gray-600">
-								No further arrivals for this trip.
+								{!status?.lap_completed
+									? "Calculating arrivals..."
+									: "No further arrivals for this trip."}
 							</p>
 						</div>
 					)}

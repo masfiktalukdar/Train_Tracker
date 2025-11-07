@@ -129,7 +129,7 @@ export default function TrainListPage() {
 		// Show if no trains are on this route
 		if (filteredTrains.length === 0) {
 			return (
-				<div className="text-center p-10">
+				<div className="text-center p-10 bg-white rounded-xl shadow border">
 					<h3 className="text-xl font-medium text-gray-700">No trains found</h3>
 					<p className="text-gray-500 mt-2">
 						There are no trains assigned to this route yet.
@@ -154,34 +154,44 @@ export default function TrainListPage() {
 	};
 
 	return (
-		<div className="container mx-auto max-w-3xl py-6 px-4 pb-24 md:pb-6">
-			{/* --- Route Selector --- */}
-			<div className="relative mb-6">
-				<label
-					htmlFor="route-select"
-					className="block text-sm font-medium text-gray-700 mb-1"
-				>
-					Select Your Route
-				</label>
-				<select
-					id="route-select"
-					value={selectedRouteId}
-					onChange={(e) => setSelectedRouteId(e.target.value)}
-					className="w-full pl-4 pr-10 py-3 text-lg font-medium border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all appearance-none bg-white"
-					disabled={isLoadingRoutes}
-				>
-					{routes.map((route) => (
-						<option key={route.id} value={route.id}>
-							{route.name}
-						</option>
-					))}
-				</select>
-				<ChevronDown className="absolute right-4 top-1/2 mt-1.5 -translate-y-1/2 h-6 w-6 text-gray-400 pointer-events-none" />
-			</div>
+		<div className="bg-gray-100 min-h-[calc(100vh-128px)] md:min-h-[calc(100vh-64px)]">
+			<div className="container mx-auto max-w-3xl py-6 px-4 pb-24 md:pb-6">
+				{/* --- Route Selector --- */}
+				<div className="relative mb-6">
+					<label
+						htmlFor="route-select"
+						className="block text-sm font-medium text-gray-700 mb-1"
+					>
+						Select Your Route
+					</label>
+					<div className="relative">
+						<select
+							id="route-select"
+							value={selectedRouteId}
+							onChange={(e) => setSelectedRouteId(e.target.value)}
+							className="w-full pl-4 pr-10 py-3 text-base font-semibold border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all appearance-none bg-white shadow-sm"
+							disabled={isLoadingRoutes}
+						>
+							{routes.map((route) => (
+								<option
+									key={route.id}
+									value={route.id.toString()}
+									className="font-medium"
+								>
+									{route.name}
+								</option>
+							))}
+						</select>
+						<ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
+					</div>
+				</div>
 
-			{/* --- Train List --- */}
-			<h2 className="text-xl font-bold text-gray-800 mb-4">Available Trains</h2>
-			{renderContent()}
+				{/* --- Train List --- */}
+				<h2 className="text-2xl font-bold text-gray-800 mb-4">
+					Available Trains
+				</h2>
+				{renderContent()}
+			</div>
 		</div>
 	);
 }

@@ -17,9 +17,8 @@ import {
 	Info,
 	X,
 	MapPin,
-	Loader2, // --- ADDED
+	Loader2,
 } from "lucide-react";
-// --- MODIFIED: Import useEffect
 import { useState, useMemo, useEffect } from "react";
 import {
 	format24HourTime,
@@ -28,69 +27,62 @@ import {
 import { getFullJourney } from "@/features/user/utils/predictionLogic";
 import { Station } from "@/types/dataModels";
 
-// --- NEW COMPONENT: AtTurnaroundStatus ---
-/**
- * Renders the "At Turnaround" status box with dynamic text.
- */
+// --- CONSTANTS ---
+const FIVE_MINUTES_MS = 1000 * 60 * 5;
+
+// --- COMPONENT: AtTurnaroundStatus (Uses scheduled times) ---
 function AtTurnaroundStatus({
 	stationName,
-	departureTime,
-	trainDirection,
+	defaultDepartureTime,
 }: {
 	stationName: string;
-	departureTime: number;
-	trainDirection: "Up" | "Down";
+	defaultDepartureTime: number;
 }) {
 	const [now, setNow] = useState(Date.now());
-	const [message, setMessage] = useState("");
+
+	// The scheduled arrival is 5 minutes before the scheduled departure
+	const defaultArrivalTime = defaultDepartureTime - FIVE_MINUTES_MS;
 
 	useEffect(() => {
-		// This interval updates the component every second
 		const timer = setInterval(() => {
 			setNow(Date.now());
 		}, 1000);
-
 		return () => clearInterval(timer);
 	}, []);
 
-	useEffect(() => {
-		const remainingMs = departureTime - now;
-		const remainingSeconds = Math.round(remainingMs / 1000);
+	let title = `At ${stationName.split(" ")[0]}`;
+	let message = "";
+	let showSpinner = false;
 
-		if (remainingMs <= 0) {
-			// Train should be departing now
-			setMessage("Train is departing now...");
-		} else if (remainingMs <= 60 * 1000) {
-			// Less than 1 minute
-			setMessage(`Train is about to depart in ${remainingSeconds}s...`);
-		} else {
-			// More than 1 minute
-			setMessage(
-				`We are at the ${trainDirection} final station. The train will continue its journey at ~`
-			);
-		}
-	}, [now, departureTime, trainDirection]);
+	if (now < defaultArrivalTime) {
+		// Case 1: Arrived early. Waiting for turnaround window.
+		title = stationName.split(" ")[0];
+		message = "Reached turnaround section. Train will depart at ~";
+	} else if (now >= defaultArrivalTime && now < defaultDepartureTime) {
+		// Case 2: In the 5-minute turnaround window.
+		message = "Departs at ~";
+	} else {
+		// Case 3: Past scheduled departure.
+		message = "Train is departing now...";
+		showSpinner = true;
+	}
 
 	return (
 		<div className="flex flex-col items-center justify-center p-6 text-center">
-			{message.includes("about to depart") || message.includes("departing") ? (
+			{showSpinner ? (
 				<Loader2 className="h-16 w-16 text-red-600 mb-4 animate-spin" />
 			) : (
 				<MapPin className="h-16 w-16 text-red-600 mb-4" />
 			)}
-			<h2 className="text-2xl font-bold text-gray-800">
-				At {stationName.split(" ")[0]}
-			</h2>
+			<h2 className="text-2xl font-bold text-gray-800">{title}</h2>
 			<p className="text-gray-600 mt-1 text-lg">
-				{message.includes("departing") ||
-				message.includes("about to depart") ? (
+				{showSpinner ? (
 					<span className="font-semibold text-red-700">{message}</span>
 				) : (
 					<>
-						{message}
-						<br />
+						{message} <br />
 						<span className="font-semibold text-red-700 font-mono">
-							{formatTimeFromDate(departureTime)}
+							{formatTimeFromDate(defaultDepartureTime)}
 						</span>
 					</>
 				)}
@@ -99,9 +91,7 @@ function AtTurnaroundStatus({
 	);
 }
 
-/**
- * Renders the "At Station" status box
- */
+// --- OTHER STATUS COMPONENTS (Unchanged) ---
 function AtStationStatus({
 	stationName,
 	departureTime,
@@ -125,9 +115,6 @@ function AtStationStatus({
 	);
 }
 
-/**
- * Renders the "At Final Station" status box
- */
 function AtFinalStationStatus({ stationName }: { stationName: string }) {
 	return (
 		<div className="flex flex-col items-center justify-center p-6 text-center">
@@ -140,9 +127,6 @@ function AtFinalStationStatus({ stationName }: { stationName: string }) {
 	);
 }
 
-/**
- * Renders the "Pending Departure" status box
- */
 function PendingDepartureStatus({
 	train,
 	journey,
@@ -175,10 +159,8 @@ function PendingDepartureStatus({
 }
 
 export default function TrainStatusPage() {
-	// --- FIX: trainIdParam is now a string (UUID) ---
-	const { trainId: trainIdParam } = useParams<{ trainId: string }>();
-	// --- FIX: No longer convert to number ---
-	const trainId = trainIdParam;
+	// --- REVERTED: Keep trainId as string (for UUID support) ---
+	const { trainId } = useParams<{ trainId: string }>();
 
 	const [showSchedule, setShowSchedule] = useState(false);
 
@@ -189,13 +171,15 @@ export default function TrainStatusPage() {
 		queryKey: ["trains", trainId],
 		queryFn: async () => {
 			const trains = await getTrains();
-			// --- FIX: Compare string to string ---
-			return trains.find((t) => t.id === trainId);
+			// Using loose equality (==) in case of mixed string/number types from API,
+			// ensuring we match UUID strings if that's what the API returns now.
+			// eslint-disable-next-line eqeqeq
+			return trains.find((t) => t.id == trainId);
 		},
-		enabled: !!trainId, // Only run if trainId is truthy
+		enabled: !!trainId,
 	});
 
-	// 2. Fetch all routes (needed to find the train's route)
+	// 2. Fetch all routes
 	const { data: routes = [], isLoading: isLoadingRoutes } = useQuery<
 		ApiRoute[]
 	>({
@@ -203,7 +187,7 @@ export default function TrainStatusPage() {
 		queryFn: getRoutes,
 	});
 
-	// 3. Get today's status for this train
+	// 3. Get today's status
 	const {
 		data: status,
 		isLoading: isLoadingStatus,
@@ -213,16 +197,13 @@ export default function TrainStatusPage() {
 	} = useQuery<DailyTrainStatus | null>({
 		queryKey: ["dailyStatus", trainId, new Date().toISOString().split("T")[0]],
 		queryFn: () =>
-			// --- FIX: Pass string trainId ---
+			// @ts-expect-error - ignoring potential string/number type mismatch for trainId
 			getDailyStatus(trainId, new Date().toISOString().split("T")[0]),
 		enabled: !!trainId,
-		// --- REQUEST 1: Refetch status every 10 seconds ---
 		refetchInterval: 10000,
-		// --- REQUEST 1: Refetch when window is focused ---
 		refetchOnWindowFocus: true,
 	});
 
-	// Find the train's route object
 	const route = train ? routes.find((r) => r.id === train.routeId) : undefined;
 
 	const fullJourney: Station[] = useMemo(() => {
@@ -230,23 +211,21 @@ export default function TrainStatusPage() {
 		return getFullJourney(route.stations, train.stoppages, train.direction);
 	}, [train, route]);
 
-	// --- Get Train Direction for turnaround message ---
-	const trainDirection = train?.direction === "up" ? "Up" : "Down";
-	// --- End of new info ---
-
 	// 4. Get predictions
 	const {
 		predictions,
 		currentTravelInfo,
 		atStationInfo,
-		atTurnaroundInfo, // <-- ADDED: Get turnaround state
+		atTurnaroundInfo,
+		isJourneyComplete,
+		isAtFinalStation,
 		warning,
 		isLoading: isLoadingPrediction,
 	} = useTrainPrediction(train, route, status);
 
 	const isLoading = isLoadingTrain || isLoadingRoutes || isLoadingStatus;
 
-	// --- Render Schedule Modal ---
+	// --- Render Helpers ---
 	const renderScheduleModal = () => (
 		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
 			<div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col">
@@ -272,11 +251,9 @@ export default function TrainStatusPage() {
 							</span>
 							<div className="flex gap-4 font-mono text-sm">
 								<span className="text-green-600" title="Up Arrival">
-									{/* --- TIME FORMAT --- */}
 									UP: {format24HourTime(stoppage.upArrivalTime)}
 								</span>
 								<span className="text-red-600" title="Down Arrival">
-									{/* --- TIME FORMAT --- */}
 									DN: {format24HourTime(stoppage.downArrivalTime)}
 								</span>
 							</div>
@@ -287,7 +264,6 @@ export default function TrainStatusPage() {
 		</div>
 	);
 
-	// --- Render Main Content ---
 	if (isLoading) {
 		return <LoadingSpinner text="Loading train status..." fullPage />;
 	}
@@ -303,7 +279,7 @@ export default function TrainStatusPage() {
 		);
 	}
 
-	// --- MODIFICATION: Remove NaN check ---
+	// --- MODIFIED: Removed isNaN check ---
 	if (!train || !route || !trainId) {
 		return (
 			<ErrorDisplay
@@ -322,18 +298,19 @@ export default function TrainStatusPage() {
 		? status.arrivals[status.arrivals.length - 1]
 		: null;
 
-	const isAtFinalStation =
+	// Show "Final Station" only if we are there, NOT turnaround, NOT completed
+	const showAtFinalStation =
+		isAtFinalStation &&
 		!atStationInfo &&
-		!atTurnaroundInfo && // --- ADDED: Check
+		!atTurnaroundInfo &&
 		!currentTravelInfo &&
 		lastArrival &&
-		!status?.lap_completed;
+		!isJourneyComplete;
 
 	return (
 		<>
 			{showSchedule && renderScheduleModal()}
 			<div className="container mx-auto max-w-3xl py-6 px-4 pb-24 md:pb-6">
-				{/* --- Header --- */}
 				<div className="text-center mb-6">
 					<h1 className="text-4xl font-extrabold text-primary-900">
 						{train.name}
@@ -341,7 +318,6 @@ export default function TrainStatusPage() {
 					<p className="text-lg text-gray-600 font-mono">{train.code}</p>
 				</div>
 
-				{/* --- Lateness Warning --- */}
 				{warning && (
 					<div className="flex items-center gap-3 bg-red-100 border border-red-300 text-red-800 p-4 rounded-lg mb-6">
 						<AlertTriangle className="h-6 w-6 flex-shrink-0" />
@@ -349,24 +325,21 @@ export default function TrainStatusPage() {
 					</div>
 				)}
 
-				{/* --- Current Status / Progress Bar --- */}
 				<div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-6">
-					{/* --- MODIFIED LOGIC --- */}
-					{status?.lap_completed ? (
+					{isJourneyComplete ? (
 						<div className="flex flex-col items-center justify-center p-6 text-center">
 							<CheckCircle className="h-16 w-16 text-green-500 mb-4" />
 							<h2 className="text-2xl font-bold text-gray-800">
 								Journey Completed
 							</h2>
 							<p className="text-gray-600 mt-1">
-								This train has completed its lap for today.
+								This train has completed its route for today.
 							</p>
 						</div>
-					) : atTurnaroundInfo ? ( // --- ADDED: Check for turnaround first
+					) : atTurnaroundInfo ? (
 						<AtTurnaroundStatus
 							stationName={atTurnaroundInfo.stationName}
-							departureTime={atTurnaroundInfo.departureTime}
-							trainDirection={trainDirection}
+							defaultDepartureTime={atTurnaroundInfo.defaultDepartureTime}
 						/>
 					) : atStationInfo ? (
 						<AtStationStatus
@@ -375,17 +348,16 @@ export default function TrainStatusPage() {
 						/>
 					) : currentTravelInfo ? (
 						<TrainProgressBar info={currentTravelInfo} />
-					) : isAtFinalStation ? (
+					) : showAtFinalStation ? (
 						<AtFinalStationStatus stationName={lastArrival!.stationName} />
 					) : (
 						<PendingDepartureStatus train={train} journey={fullJourney} />
 					)}
-					{/* --- END MODIFIED LOGIC --- */}
 
 					{lastArrival &&
-						!status?.lap_completed &&
+						!isJourneyComplete &&
 						!atStationInfo &&
-						!atTurnaroundInfo && ( // --- ADDED: Check
+						!atTurnaroundInfo && (
 							<p className="text-center text-sm text-gray-600 mt-4">
 								Last arrival:{" "}
 								<span className="font-bold">{lastArrival.stationName}</span> at{" "}
@@ -396,7 +368,6 @@ export default function TrainStatusPage() {
 						)}
 				</div>
 
-				{/* --- Schedule Button --- */}
 				<div className="mb-6">
 					<button
 						onClick={() => setShowSchedule(true)}
@@ -407,7 +378,6 @@ export default function TrainStatusPage() {
 					</button>
 				</div>
 
-				{/* --- Next Arrivals --- */}
 				<div>
 					<h2 className="text-2xl font-bold text-gray-800 mb-4">
 						Next Arrivals
@@ -417,9 +387,9 @@ export default function TrainStatusPage() {
 					) : predictions.length > 0 ? (
 						<div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
 							<ul className="divide-y divide-gray-200">
-								{predictions.slice(0, 3).map((p) => (
+								{predictions.slice(0, 3).map((p, idx) => (
 									<li
-										key={p.stationId}
+										key={`${p.stationId}-${idx}`}
 										className="flex items-center justify-between p-4"
 									>
 										<span className="text-lg font-medium text-gray-800">
@@ -451,9 +421,9 @@ export default function TrainStatusPage() {
 					) : (
 						<div className="text-center p-10 bg-white rounded-xl shadow-lg border border-gray-200">
 							<p className="text-gray-600">
-								{!status?.lap_completed
-									? "Calculating arrivals..."
-									: "No further arrivals for this trip."}
+								{isJourneyComplete || isAtFinalStation
+									? "No further arrivals for this trip."
+									: "Calculating arrivals..."}
 							</p>
 						</div>
 					)}

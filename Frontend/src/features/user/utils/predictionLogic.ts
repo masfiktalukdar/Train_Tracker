@@ -88,34 +88,48 @@ export function getAverageTravelTime(
 export function getDefaultTravelTime(
   stoppages: TrainStoppage[],
   stationA_id: string,
-  stationB_id: string
+  stationB_id: string,
+  legDirection: "up" | "down" // --- ADDED: We need to know which leg we are on
 ): number | null {
   const stoppageA = stoppages.find((s) => s.stationId === stationA_id);
   const stoppageB = stoppages.find((s) => s.stationId === stationB_id);
 
   if (!stoppageA || !stoppageB) return null;
 
-  // This logic assumes we are checking *both* directions and finding a valid time
-  // A more robust solution would know the leg of the journey
+  // --- MODIFIED: Use the explicit legDirection ---
+  const timeStrA =
+    legDirection === "up"
+      ? stoppageA.upArrivalTime
+      : stoppageA.downArrivalTime;
+  const timeStrB =
+    legDirection === "up"
+      ? stoppageB.upArrivalTime
+      : stoppageB.downArrivalTime;
 
-  let timeA = parseTimeToToday(stoppageA.upArrivalTime);
-  let timeB = parseTimeToToday(stoppageB.upArrivalTime);
+  let timeA = parseTimeToToday(timeStrA);
+  let timeB = parseTimeToToday(timeStrB);
+
+  if (timeA > 0 && timeB > 0) {
+    if (timeB > timeA) {
+      return timeB - timeA; // Simple case: 10:00 -> 11:00
+    } else {
+      // Handle midnight wrap-around: 23:00 -> 01:00
+      timeB = parseTimeToToday(timeStrB, true); // Add a day to B
+      if (timeB > timeA) {
+        return timeB - timeA;
+      }
+    }
+  }
+
+  // --- ADDED: Fallback check for "opposite" day wrap-around ---
+  // E.g., Leg is "up", but 23:00 (up) -> 01:00 (up) fails.
+  // Try parsing B as "next day"
+  timeA = parseTimeToToday(timeStrA);
+  timeB = parseTimeToToday(timeStrB, true); // Add a day
   if (timeA > 0 && timeB > 0 && timeB > timeA) return timeB - timeA;
 
-  timeA = parseTimeToToday(stoppageA.downArrivalTime);
-  timeB = parseTimeToToday(stoppageB.downArrivalTime);
-  if (timeA > 0 && timeB > 0 && timeB > timeA) return timeB - timeA;
 
-  // Handle midnight wrap-around (simplified)
-  timeA = parseTimeToToday(stoppageA.upArrivalTime);
-  timeB = parseTimeToToday(stoppageB.upArrivalTime, true); // Add a day
-  if (timeA > 0 && timeB > 0 && timeB > timeA) return timeB - timeA;
-
-  timeA = parseTimeToToday(stoppageA.downArrivalTime);
-  timeB = parseTimeToToday(stoppageB.downArrivalTime, true); // Add a day
-  if (timeA > 0 && timeB > 0 && timeB > timeA) return timeB - timeA;
-
-  return null;
+  return null; // Could not calculate
 }
 
 /**
@@ -134,6 +148,14 @@ export function parseTimeToToday(time: string, addDay = false): number {
   if (addDay) {
     date.setDate(date.getDate() + 1);
   }
+
+  // --- ADDED: Handle times like "01:00" when it's "23:00" now ---
+  // If the time is more than 6 hours in the *past*, assume it's for *tomorrow*.
+  const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
+  if (!addDay && new Date().getTime() - date.getTime() > SIX_HOURS_MS) {
+    date.setDate(date.getDate() + 1);
+  }
+
   return date.getTime();
 }
 

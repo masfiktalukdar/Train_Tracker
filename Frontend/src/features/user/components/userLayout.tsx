@@ -83,7 +83,6 @@ export default function UserLayout() {
 							</span>
 						</div>
 
-
 						{/* RIGHT: Logout */}
 						<div className="flex items-center justify-end">
 							<button
@@ -167,7 +166,7 @@ export default function UserLayout() {
 
 					<Link
 						to="/about"
-						onClick={() => setMenuOpen(false)}
+						onClick={() => closeMenuAndNavigate("/about")}
 						className="px-3 py-2 rounded-md hover:bg-gray-50 transition text-gray-700"
 					>
 						About

@@ -22,6 +22,7 @@ import TrainListPage from "@features/user/pages/trainsListPage";
 import StationListPage from "@features/user/pages/stationListPage";
 import TrainStatusPage from "@features/user/pages/trainStatusPage";
 import StationStatusPage from "@features/user/pages/stationStatusPage";
+import AboutPage from "./features/user/pages/aboutPage";
 import { useInterfaceStore } from "@store/useInterfaceStore";
 
 /**
@@ -64,6 +65,7 @@ export default function App() {
 					<Route path="trains/:trainId" element={<TrainStatusPage />} />
 					<Route path="stations" element={<StationListPage />} />
 					<Route path="stations/:stationId" element={<StationStatusPage />} />
+					<Route path="about" element={<AboutPage />} />
 				</Route>
 			</Route>
 

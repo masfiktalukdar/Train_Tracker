@@ -319,5 +319,75 @@ router.delete('/trains/:id', async (req: Request, res: Response) => {
   res.status(204).send(); // 204 No Content
 });
 
+// =================================================================
+// --- FEEDBACK ROUTES (ADMIN) ---
+// =================================================================
+
+router.get('/feedback', async (req: Request, res: Response) => {
+  try {
+    const { page = 1, search = '', filter = 'all' } = req.query;
+    const limit = 15;
+    const from = (Number(page) - 1) * limit;
+    const to = from + limit - 1;
+
+    let query = supabase
+      .from('feedback')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    // --- SEARCH ---
+    if (search) {
+      query = query.or(`message.ilike.%${search}%,reason.ilike.%${search}%,email.ilike.%${search}%`);
+    }
+
+    // --- TIME FILTER ---
+    if (filter !== 'all') {
+      const now = new Date();
+      let filterDate = new Date();
+      switch (filter) {
+        case 'today':
+          filterDate.setHours(0, 0, 0, 0);
+          break;
+        case 'week':
+          filterDate.setDate(now.getDate() - 7);
+          break;
+        case 'month':
+          filterDate.setMonth(now.getMonth() - 1);
+          break;
+      }
+      if (filter !== 'all') {
+        query = query.gte('created_at', filterDate.toISOString());
+      }
+    }
+
+    const { data, count, error } = await query;
+
+    if (error) throw error;
+
+    res.json({ data, count, page: Number(page), limit });
+
+  } catch (error) {
+    console.error("Error fetching feedback:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+});
+
+// OPTIONAL: Mark feedback as read/archived
+router.patch('/feedback/:id/status', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  const { data, error } = await supabase
+    .from('feedback')
+    .update({ status })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
 
 export default router;

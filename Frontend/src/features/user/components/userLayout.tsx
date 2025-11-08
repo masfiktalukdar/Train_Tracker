@@ -36,8 +36,12 @@ const useHeaderConfig = (pathname: string, userEmail?: string): HeaderConfig =>
 		if (pathname.startsWith("/stations/"))
 			return { title: "Station Status", showBack: true, showLogo: false };
 
-		if (pathname === "/stations")
-			return { title: "Select a Station", showBack: true, showLogo: false };
+		if (pathname === "/about")
+			return { title: "About Us", showBack: true, showLogo: false };
+
+    if (pathname === "/contact")
+			return { title: "Contact Us", showBack: true, showLogo: false };
+
 
 		return { title: "Train Tracker", showBack: false, showLogo: true };
 	}, [pathname, userEmail]);
@@ -173,7 +177,7 @@ export default function UserLayout() {
 					</Link>
 					<Link
 						to="/contact"
-						onClick={() => setMenuOpen(false)}
+						onClick={() => closeMenuAndNavigate("/contact")}
 						className="px-3 py-2 rounded-md hover:bg-gray-50 transition text-gray-700"
 					>
 						Contact

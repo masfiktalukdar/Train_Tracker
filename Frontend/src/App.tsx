@@ -6,6 +6,7 @@ import AdminDashboard from "@features/admin/pages/adminDashboard";
 import AdminStationRoutes from "./features/admin/pages/adminStationRoutes";
 import AdminStations from "@features/admin/pages/adminStations";
 import AdminTrains from "@features/admin/pages/adminTrains";
+import AdminFeedbackPage from "@features/admin/pages/adminFeedback"; // NEW
 import ProtectedLayout from "@components/protectedLayout"; // Admin protected layout
 import AdminLoginPage from "@pages/adminLoginPage";
 
@@ -23,6 +24,7 @@ import StationListPage from "@features/user/pages/stationListPage";
 import TrainStatusPage from "@features/user/pages/trainStatusPage";
 import StationStatusPage from "@features/user/pages/stationStatusPage";
 import AboutPage from "./features/user/pages/aboutPage";
+import ContactPage from "@features/user/pages/contactPage"; // NEW
 import { useInterfaceStore } from "@store/useInterfaceStore";
 
 /**
@@ -53,6 +55,8 @@ export default function App() {
 					<Route path="routes" element={<AdminStationRoutes />} />
 					<Route path="trains" element={<AdminTrains />} />
 					<Route path="stations" element={<AdminStations />} />
+					{/* NEW ADMIN ROUTE */}
+					<Route path="feedback" element={<AdminFeedbackPage />} />
 				</Route>
 			</Route>
 
@@ -66,6 +70,8 @@ export default function App() {
 					<Route path="stations" element={<StationListPage />} />
 					<Route path="stations/:stationId" element={<StationStatusPage />} />
 					<Route path="about" element={<AboutPage />} />
+					{/* NEW USER ROUTE */}
+					<Route path="contact" element={<ContactPage />} />
 				</Route>
 			</Route>
 

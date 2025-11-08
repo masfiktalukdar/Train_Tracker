@@ -1,10 +1,11 @@
 import express from "express";
+import type { Request, Response } from "express";
 import supabase from "../config/supabaseClient.ts";
 
 const router = express.Router();
 
 // --- GET ALL STATIONS ---
-router.get('/stations', async (req, res) => {
+router.get('/stations', async (req: Request, res: Response) => {
   const { data, error } = await supabase
     .from('stations')
     .select('*')
@@ -15,7 +16,7 @@ router.get('/stations', async (req, res) => {
 });
 
 // --- GET ALL ROUTES ---
-router.get('/routes', async (req, res) => {
+router.get('/routes', async (req: Request, res: Response) => {
   const { data, error } = await supabase
     .from('routes')
     .select('*')
@@ -42,7 +43,7 @@ router.get('/routes', async (req, res) => {
 });
 
 // --- GET ALL TRAINS ---
-router.get('/trains', async (req, res) => {
+router.get('/trains', async (req: Request, res: Response) => {
   const { data, error } = await supabase
     .from('trains')
     .select('*')
@@ -69,7 +70,7 @@ router.get('/trains', async (req, res) => {
 });
 
 // --- GET LIVE STATUS FOR A SINGLE TRAIN (FOR TODAY) ---
-router.get('/status/:trainId', async (req, res) => {
+router.get('/status/:trainId', async (req: Request, res: Response) => {
   const { trainId } = req.params;
   // Use the 'date' query param if provided, otherwise default to today
   const dateQuery = req.query.date as string | undefined;
@@ -101,7 +102,7 @@ router.get('/status/:trainId', async (req, res) => {
 });
 
 // --- NEW: GET 7-DAY HISTORY FOR A SINGLE TRAIN ---
-router.get('/history/:trainId', async (req, res) => {
+router.get('/history/:trainId', async (req: Request, res: Response) => {
   const { trainId } = req.params;
 
   // Get today's date
@@ -143,5 +144,32 @@ router.get('/history/:trainId', async (req, res) => {
   res.json(parsedData);
 });
 
-export default router;
+// --- CONTACT / FEEDBACK SUBMISSION ---
+router.post('/feedback', async (req: Request, res: Response) => {
+  const { userId, name, email, reason, message } = req.body;
 
+  if (!email || !reason || !message) {
+    return res.status(400).json({ error: "Email, reason, and message are required." });
+  }
+
+  const { data, error } = await supabase
+    .from('feedback')
+    .insert({
+      user_id: userId || null, // Optional linkage to auth user
+      name,
+      email,
+      reason,
+      message,
+      status: 'new'
+    })
+    .select()
+    .single();
+
+  if (error) {
+    return res.status(500).json({ error: error.message });
+  }
+
+  res.status(201).json({ message: "Feedback received successfully!", data });
+});
+
+export default router;

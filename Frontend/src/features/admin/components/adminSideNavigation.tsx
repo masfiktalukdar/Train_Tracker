@@ -1,4 +1,4 @@
-import { LayoutDashboard, TrainFront, Castle, TrainTrack } from "lucide-react";
+import { LayoutDashboard, TrainFront, Castle, TrainTrack, MessageSquare } from "lucide-react";
 import BRLogo from "@assets/bangaldesh-railway-logo.png";
 import { NavLink } from "react-router-dom";
 import type { SideNavigationProps } from "@app-types/navigation";
@@ -12,6 +12,7 @@ export default function SideNavigation({
 		{ path: "/admin/routes", label: "Routes", icon: TrainTrack },
 		{ path: "/admin/stations", label: "Stations", icon: Castle },
 		{ path: "/admin/trains", label: "Trains", icon: TrainFront },
+		{ path: "/admin/feedback", label: "Feedback", icon: MessageSquare },
 	];
 
 	return (

@@ -173,7 +173,7 @@ export default function TrainStatusPage() {
 			const trains = await getTrains();
 			// Using loose equality (==) in case of mixed string/number types from API,
 			// ensuring we match UUID strings if that's what the API returns now.
-			return trains.find((t) => t.id == trainId);
+			return trains.find((t) => String(t.id) == trainId);
 		},
 		enabled: !!trainId,
 	});

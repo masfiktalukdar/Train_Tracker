@@ -54,7 +54,6 @@ export function useTrainPrediction(
 
   const { data: history, isLoading: isLoadingHistory } = useQuery({
     queryKey: ["trainHistory", train?.id],
-    // @ts-expect-error - ignoring potential ID type mismatch for history API
     queryFn: () => getTrainHistory(train!.id),
     enabled: !!train,
   });

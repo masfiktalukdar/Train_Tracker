@@ -11,6 +11,7 @@ import LoadingSpinner from "@features/user/components/loadingSpinner";
 import ErrorDisplay from "@features/user/components/errorDisplay";
 import TrainCard from "@features/user/components/trainCard";
 import { getRoutes, ApiRoute } from "@/features/admin/api/routesApi";
+import { MapPin, ExternalLink } from "lucide-react";
 
 export default function StationStatusPage() {
 	const { stationId } = useParams<{ stationId: string }>();
@@ -76,16 +77,23 @@ export default function StationStatusPage() {
 			if (!status || status.lap_completed) return;
 
 			// Check if "Arrived Now"
-			if (status.last_completed_station_id === stationId) {
-				arrived.push(train);
-				return;
+			// We also check if 5 minutes have passed since arrival to move it out of "Arrived Now"
+			const lastArrivalRecord = status.arrivals[status.arrivals.length - 1];
+			if (status.last_completed_station_id === stationId && lastArrivalRecord) {
+				const arrivalTime = new Date(lastArrivalRecord.arrivedAt).getTime();
+				const now = Date.now();
+				// If it arrived less than 5 mins ago, it's still "Arrived Now"
+				if (now - arrivalTime < 5 * 60 * 1000) {
+					arrived.push(train);
+					return;
+				}
+				// If more than 5 mins, it has departed, so it shouldn't be in "Arrived Now"
 			}
 
-			// Check if "Arriving Soon" (i.e., at the previous station)
+			// Check if "Arriving Soon" (i.e., THIS station is the NEXT station)
 			const route = allRoutes.find((r) => r.id === train.routeId);
 			if (!route) return;
 
-			// Find the index of *this* station in the train's journey
 			const stoppageMap = new Map(train.stoppages.map((s) => [s.stationId, s]));
 			const actualStoppagesOnRoute =
 				route.stations.filter((station) =>
@@ -97,10 +105,12 @@ export default function StationStatusPage() {
 					? [...actualStoppagesOnRoute]
 					: [...actualStoppagesOnRoute].reverse();
 
+			// Full journey including turnaround
 			const journey = [
 				...firstLegStations,
 				...firstLegStations.reverse().slice(1),
 			];
+
 			const thisStationJourneyIndex = journey.findIndex(
 				(s) => s.stationId === stationId
 			);
@@ -108,9 +118,18 @@ export default function StationStatusPage() {
 			if (thisStationJourneyIndex > 0) {
 				// Find the previous station in the *full journey*
 				const prevStationInJourney = journey[thisStationJourneyIndex - 1];
+
+				// If the train's last completed station WAS the previous station,
+				// then it is currently en route to THIS station.
 				if (
 					status.last_completed_station_id === prevStationInJourney.stationId
 				) {
+					soon.push(train);
+				}
+			} else if (thisStationJourneyIndex === 0) {
+				// Special case: This is the FIRST station.
+				// If no arrivals yet, it's "Arriving Soon" (pending departure)
+				if (status.arrivals.length === 0) {
 					soon.push(train);
 				}
 			}
@@ -142,13 +161,33 @@ export default function StationStatusPage() {
 
 	return (
 		<div className="container mx-auto max-w-3xl py-6 px-4 pb-24 md:pb-6">
-			<h1 className="text-4xl font-extrabold text-primary-900 text-center mb-8">
-				{station.stationName}
-			</h1>
+			{/* --- Improved Header --- */}
+			<div className="text-center mb-8 bg-white p-6 rounded-xl shadow-md border border-gray-200">
+				<h1 className="text-3xl font-extrabold text-primary-900 mb-2">
+					{station.stationName}
+				</h1>
+				<div className="flex items-center justify-center gap-2 text-gray-600 mb-4">
+					<MapPin className="h-5 w-5" />
+					<span className="text-lg">{station.stationLocation}</span>
+				</div>
+				{station.stationLocationURL && (
+					<a
+						href={station.stationLocationURL}
+						target="_blank"
+						rel="noopener noreferrer"
+						className="inline-flex items-center gap-2 px-4 py-2 bg-primary-100 text-primary-700 rounded-lg font-medium hover:bg-primary-200 transition-colors"
+					>
+						View on Map
+						<ExternalLink className="h-4 w-4" />
+					</a>
+				)}
+			</div>
 
 			{/* Arrived Now */}
 			<div className="mb-8">
-				<h2 className="text-2xl font-bold text-gray-800 mb-4">Arrived Now</h2>
+				<h2 className="text-2xl font-bold text-gray-800 mb-4">
+					Arrived Now (On Platform)
+				</h2>
 				{arrivedNow.length > 0 ? (
 					<div className="space-y-4">
 						{arrivedNow.map((train) => (
@@ -162,14 +201,14 @@ export default function StationStatusPage() {
 					</div>
 				) : (
 					<p className="text-gray-500 text-center p-6 bg-white rounded-xl shadow-md border">
-						No trains are currently at this station.
+						No trains are currently at this station platform.
 					</p>
 				)}
 			</div>
 
 			{/* Arriving Soon */}
 			<div>
-				<h2 className="text-2xl font-bold text-gray-800 mb-4">Arriving Soon</h2>
+				<h2 className="text-2xl font-bold text-gray-800 mb-4">Arriving Next</h2>
 				{arrivingSoon.length > 0 ? (
 					<div className="space-y-4">
 						{arrivingSoon.map((train) => (
@@ -183,7 +222,7 @@ export default function StationStatusPage() {
 					</div>
 				) : (
 					<p className="text-gray-500 text-center p-6 bg-white rounded-xl shadow-md border">
-						No trains are arriving soon.
+						No incoming trains detected for this station right now.
 					</p>
 				)}
 			</div>

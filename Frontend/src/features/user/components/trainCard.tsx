@@ -3,16 +3,17 @@ import { Train, ChevronRight, CheckCircle, Clock, MapPin } from "lucide-react";
 import type { ApiTrain } from "@/features/admin/api/trainsApi";
 import type { ApiRoute } from "@/features/admin/api/routesApi";
 import type { DailyTrainStatus } from "@/features/admin/api/statusApi";
-// --- FIX: Corrected import paths ---
-import { getFullJourney } from "../utils/predictionLogic";
-import { format24HourTime } from "../utils/formatTime";
-import type { Station } from "@/types/dataModels"; // <-- This is correct
+import { getFullJourney, parseTimeToToday } from "../utils/predictionLogic";
+import { format24HourTime, formatTimeFromDate } from "../utils/formatTime";
+import type { Station } from "@/types/dataModels";
 
 type TrainCardProps = {
 	train: ApiTrain;
 	route?: ApiRoute;
 	status?: DailyTrainStatus | null;
 };
+
+const FIVE_MINUTES_MS = 1000 * 60 * 5;
 
 // Helper to get the scheduled time for a station from stoppages
 function getScheduledTime(
@@ -34,7 +35,6 @@ function getScheduledTime(
 }
 
 export default function TrainCard({ train, route, status }: TrainCardProps) {
-	// <-- This is correct
 	const journey: Station[] = route
 		? getFullJourney(route.stations, train.stoppages, train.direction)
 		: [];
@@ -85,29 +85,31 @@ export default function TrainCard({ train, route, status }: TrainCardProps) {
 	} else if (currentStation && nextStation) {
 		// EN ROUTE or AT STATION
 		const isAtTurnaround =
-			currentStation.stationId === turnaroundStation?.stationId;
-
-		// Determine if we are on the first or second leg to get the correct departure time
-		const currentLeg = lastArrivalIndex < firstLegLength ? "first" : "second";
-		const scheduledDepartureTime = getScheduledTime(
-			train,
-			currentStation.stationId,
-			currentLeg
-		);
+			currentStation.stationId === turnaroundStation?.stationId &&
+			lastArrivalIndex === firstLegLength - 1;
 
 		if (isAtTurnaround) {
+			// --- TURNAROUND LOGIC ---
+			// 1. Get the scheduled time for the START of the SECOND leg
+			const returnLegScheduledTime = getScheduledTime(
+				train,
+				currentStation.stationId,
+				"second"
+			);
+			// 2. Add 5 minutes to it
+			const departureTimestamp =
+				parseTimeToToday(returnLegScheduledTime || "") + FIVE_MINUTES_MS;
+
 			statusText = "At Turnaround";
 			statusDetail = `Departs ${
 				currentStation.stationName.split(" ")[0]
-			} at ~ ${format24HourTime(scheduledDepartureTime)}`;
+			} at ~ ${formatTimeFromDate(departureTimestamp)}`;
 			StatusIcon = MapPin;
 			iconColor = "text-red-600";
 			bgColor = "bg-red-100";
 			barColor = "bg-red-500";
 		} else {
-			// This logic assumes a 5-minute stop.
-			// For the card view, we'll just show "En Route" if it has an arrival.
-			// <-- This is correct
+			// --- NORMAL EN ROUTE LOGIC ---
 			statusText = `En Route to ${
 				nextStation ? nextStation.stationName.split(" ")[0] : "End"
 			}`;

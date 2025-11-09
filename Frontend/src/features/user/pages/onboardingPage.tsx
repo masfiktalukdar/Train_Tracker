@@ -2,23 +2,24 @@ import { useState } from "react";
 import { useInterfaceStore } from "@store/useInterfaceStore";
 import { ArrowRight } from "lucide-react";
 
+import onboardingImage1 from "@assets/onboarding_img_1.jpg";
+import onboardingImage2 from "@assets/onboarding_img_2.jpg";
+import onboardingImage3 from "@assets/onboarding_img_3.jpg"
+
 // You can replace these with better images
 const slides = [
 	{
-		image:
-			"https://images.unsplash.com/photo-1516864319504-2f22e70f0612?w=800&q=80",
+		image: onboardingImage1,
 		title: "Welcome to Train Tracker",
 		text: "Your guide to real-time train schedules and locations across Bangladesh.",
 	},
 	{
-		image:
-			"https://images.unsplash.com/photo-1527489377706-53edd09339e9?w=800&q=80",
+		image: onboardingImage2,
 		title: "Live Train Status",
 		text: "See exactly where your train is with live updates and predictive ETAs.",
 	},
 	{
-		image:
-			"https://images.unsplash.com/photo-1494515840691-1c5854b73033?w=800&q=80",
+		image: onboardingImage3,
 		title: "Find Your Station",
 		text: "Quickly find station details and see all arriving and departing trains.",
 	},

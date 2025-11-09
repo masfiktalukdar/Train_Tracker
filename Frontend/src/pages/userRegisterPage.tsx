@@ -3,6 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { register, type AuthCredentials } from "@/features/auth/api/authApi";
 import BRLogo from "@assets/bangaldesh-railway-logo.png";
+import { isAxiosError } from "axios"; // Import isAxiosError
 
 export default function UserRegisterPage() {
 	const [email, setEmail] = useState("");
@@ -12,8 +13,13 @@ export default function UserRegisterPage() {
 
 	const mutation = useMutation({
 		mutationFn: (credentials: AuthCredentials) => register(credentials),
-		onError: (error) => {
-			setError(error.message);
+		onError: (err) => {
+			// Extract specific error message
+			if (isAxiosError(err) && err.response?.data?.error) {
+				setError(err.response.data.error);
+			} else {
+				setError(err.message || "Registration failed. Please try again.");
+			}
 		},
 	});
 
@@ -21,6 +27,10 @@ export default function UserRegisterPage() {
 		e.preventDefault();
 		if (password !== confirmPassword) {
 			setError("Passwords do not match.");
+			return;
+		}
+		if (password.length < 6) {
+			setError("Password must be at least 6 characters long.");
 			return;
 		}
 		setError(null);
@@ -35,7 +45,7 @@ export default function UserRegisterPage() {
 					<p className="text-lg text-gray-700 mb-6">{mutation.data?.message}</p>
 					<Link
 						to="/login"
-						className="w-full inline-block bg-primary-700 text-white py-3 px-6 rounded-md font-semibold hover:bg-primary-800"
+						className="w-full inline-block bg-primary-700 text-white py-3 px-6 rounded-md font-semibold hover:bg-primary-800 transition-colors"
 					>
 						Back to Login
 					</Link>
@@ -101,14 +111,18 @@ export default function UserRegisterPage() {
 								required
 							/>
 						</div>
-						{error && <p className="text-sm text-red-600">{error}</p>}
-						{mutation.isError && (
-							<p className="text-sm text-red-600">{mutation.error.message}</p>
+
+						{/* Improved Error Display */}
+						{error && (
+							<div className="p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-600">
+								{error}
+							</div>
 						)}
+
 						<button
 							type="submit"
 							disabled={mutation.isPending}
-							className="w-full bg-primary-700 text-white py-3 rounded-md font-semibold hover:bg-primary-800 disabled:opacity-50"
+							className="w-full bg-primary-700 text-white py-3 rounded-md font-semibold hover:bg-primary-800 disabled:opacity-50 transition-colors"
 						>
 							{mutation.isPending ? "Creating account..." : "Create Account"}
 						</button>

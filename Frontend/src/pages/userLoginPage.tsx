@@ -3,36 +3,39 @@ import { useMutation } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import { login, type AuthCredentials } from "@/features/auth/api/authApi";
 import { useAuthStore } from "@/store/useAuthStore";
-import BRLogo from "@assets/bangaldesh-railway-logo.png"; // Using your logo
+import BRLogo from "@assets/bangaldesh-railway-logo.png";
+import { isAxiosError } from "axios"; // Import isAxiosError
 
 export default function UserLoginPage() {
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
+	const [error, setError] = useState<string | null>(null); // Add local error state
 	const navigate = useNavigate();
 	const authLogin = useAuthStore((state) => state.login);
 
 	const mutation = useMutation({
 		mutationFn: (credentials: AuthCredentials) => login(credentials),
 		onSuccess: (data) => {
-			// Login to Zustand store
 			authLogin(data.token, data.user);
-
-			// Redirect based on role
 			if (data.user.role === "admin") {
 				navigate("/admin/dashboard");
 			} else {
-				navigate("/user/dashboard"); // Or wherever users should go
+				navigate("/");
 			}
 		},
-		onError: (error) => {
-			// Handle login error (e.g., show a toast)
-			console.error("Login failed:", error.message);
-			// You would set an error state here
+		onError: (err) => {
+			// Extract specific error message
+			if (isAxiosError(err) && err.response?.data?.error) {
+				setError(err.response.data.error);
+			} else {
+				setError(err.message || "Login failed. Please try again.");
+			}
 		},
 	});
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
+		setError(null); // Clear previous errors
 		mutation.mutate({ email, password });
 	};
 
@@ -80,13 +83,18 @@ export default function UserLoginPage() {
 								required
 							/>
 						</div>
-						{mutation.isError && (
-							<p className="text-sm text-red-600">{mutation.error.message}</p>
+
+						{/* Improved Error Display */}
+						{error && (
+							<div className="p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-600">
+								{error}
+							</div>
 						)}
+
 						<button
 							type="submit"
 							disabled={mutation.isPending}
-							className="w-full bg-primary-700 text-white py-3 rounded-md font-semibold hover:bg-primary-800 disabled:opacity-50"
+							className="w-full bg-primary-700 text-white py-3 rounded-md font-semibold hover:bg-primary-800 disabled:opacity-50 transition-colors"
 						>
 							{mutation.isPending ? "Logging in..." : "Log In"}
 						</button>

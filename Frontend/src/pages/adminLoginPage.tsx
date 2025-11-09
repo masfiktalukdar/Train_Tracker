@@ -3,7 +3,8 @@ import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { login, type AuthCredentials } from "@/features/auth/api/authApi";
 import { useAuthStore } from "@/store/useAuthStore";
-import AdminAvatar from "@assets/admin-avatar.png"; // Using your admin avatar
+import AdminAvatar from "@assets/admin-avatar.png";
+import { isAxiosError } from "axios"; // Import isAxiosError
 
 export default function AdminLoginPage() {
 	const [email, setEmail] = useState("");
@@ -15,7 +16,6 @@ export default function AdminLoginPage() {
 	const mutation = useMutation({
 		mutationFn: (credentials: AuthCredentials) => login(credentials),
 		onSuccess: (data) => {
-			// **CRITICAL: Check for admin role**
 			if (data.user.role === "admin") {
 				authLogin(data.token, data.user);
 				navigate("/admin/dashboard");
@@ -23,8 +23,13 @@ export default function AdminLoginPage() {
 				setError("Access Forbidden: You are not an administrator.");
 			}
 		},
-		onError: (error) => {
-			setError(error.message);
+		onError: (err) => {
+			// Extract specific error message from backend response
+			if (isAxiosError(err) && err.response?.data?.error) {
+				setError(err.response.data.error);
+			} else {
+				setError(err.message || "An unexpected error occurred.");
+			}
 		},
 	});
 
@@ -68,14 +73,16 @@ export default function AdminLoginPage() {
 							required
 						/>
 					</div>
-					{error && <p className="text-sm text-red-600">{error}</p>}
-					{mutation.isError && !error && (
-						<p className="text-sm text-red-600">{mutation.error.message}</p>
+					{/* Display the error state, which now holds the better message */}
+					{error && (
+						<div className="p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-600">
+							{error}
+						</div>
 					)}
 					<button
 						type="submit"
 						disabled={mutation.isPending}
-						className="w-full bg-primary-800 text-white py-3 rounded-md font-semibold hover:bg-primary-900 disabled:opacity-50"
+						className="w-full bg-primary-800 text-white py-3 rounded-md font-semibold hover:bg-primary-900 disabled:opacity-50 transition-colors"
 					>
 						{mutation.isPending ? "Signing In..." : "Sign In"}
 					</button>

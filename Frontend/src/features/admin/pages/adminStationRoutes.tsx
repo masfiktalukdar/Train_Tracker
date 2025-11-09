@@ -81,7 +81,7 @@ export default function AdminStationRoutes() {
 							id="route"
 							value={activeRouteId ?? ""}
 							onChange={(e) => setActiveRoute(e.target.value)}
-							className="w-60 px-3 py-2 rounded-md border border-gray-300 bg-white text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition ease-in-out duration-150"
+							className="w-60 px-3 py-2 text-[12px] lg:text-base rounded-md border border-gray-300 bg-white text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition ease-in-out duration-150"
 						>
 							<option value="" disabled>
 								-- Select a route --
@@ -90,7 +90,7 @@ export default function AdminStationRoutes() {
 								<option
 									key={route.id}
 									value={route.id}
-									className="py-2 px-3 text-gray-700 hover:bg-indigo-100"
+									className="py-2 px-3 text-[10px] w-auto lg:text-base text-gray-700 hover:bg-indigo-100"
 								>
 									{route.name || "Untitled Route"}
 								</option>

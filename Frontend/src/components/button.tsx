@@ -15,7 +15,7 @@ export const ButtonPrimary = function ({
 }: PrimaryButtonProps) {
 	return (
 		<div
-			className="flex justify-center items-center bg-primary-800 h-auto w-auto px-6 py-2 text-white font-mono font-medium text-lg rounded-[4px] cursor-pointer"
+			className="flex justify-center items-center bg-primary-800 h-auto w-auto px-6 py-2 text-white font-mono font-medium text-[12px] lg:text-lg rounded-[4px] cursor-pointer"
 			onClick={onClick}
 		>
 			{children}

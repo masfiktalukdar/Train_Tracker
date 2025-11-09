@@ -121,9 +121,9 @@ export default function AboutPage() {
 			</div>
 
 			{/* --- Footer Contact Placeholder --- */}
-			<div className="py-10 px-4 text-center">
-				<p className="text-lg text-gray-600">
-					Have questions or feedback? Contact us at support@traintracker.bd.
+			<div className="py-5 px-4 text-center">
+				<p className="text-sm lg:text-lg text-gray-600">
+					Have questions or feedback? <Link className="text-primary-600 underline font-medium" to={"/contact"}>Contact us</Link>
 				</p>
 			</div>
 		</div>

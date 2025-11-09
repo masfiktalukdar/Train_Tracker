@@ -23,6 +23,7 @@ export type FeedbackResponse = {
 
 export type FeedbackQueryParams = {
   page?: number;
+  limit?: number; // Added limit
   search?: string;
   filter?: 'all' | 'today' | 'week' | 'month';
 };

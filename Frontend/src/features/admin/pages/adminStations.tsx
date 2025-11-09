@@ -117,7 +117,7 @@ export default function AdminStations() {
 					value={query}
 					onChange={(e) => setQuery(e.target.value)}
 					placeholder="Search stations..."
-					className="w-60 max-w-sm px-4 py-2 rounded-md border border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition placeholder:text-gray-400 text-sm bg-white"
+					className="w-40 lg:w-60 max-w-sm px-4 py-2 rounded-md border border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition placeholder:text-gray-400 text-sm bg-white"
 				/>
 			</div>
 			{isModalOpen && (

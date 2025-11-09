@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
 	getFeedback,
 	updateFeedbackStatus,
 	type FeedbackQueryParams,
 	type FeedbackStatus,
+	type FeedbackItem,
 } from "../api/feedbackApi";
 import {
 	Loader2,
@@ -26,18 +27,15 @@ export default function AdminFeedbackPage() {
 	const [page, setPage] = useState(1);
 	const [search, setSearch] = useState("");
 	const [filter, setFilter] = useState<FeedbackQueryParams["filter"]>("all");
-	const [debouncedSearch, setDebouncedSearch] = useState("");
 
-	// Debounce search input
-	useState(() => {
-		const timer = setTimeout(() => setDebouncedSearch(search), 500);
-		return () => clearTimeout(timer);
-	}); // This actually needs to be in a useEffect, fixing below.
-
-	const { data, isLoading, isError } = useQuery({
-		queryKey: ["feedback", page, debouncedSearch, filter],
-		queryFn: () => getFeedback({ page, search: debouncedSearch, filter }),
-		placeholderData: (previousData) => previousData, // Keep previous data while fetching new
+	// Fetch all feedback for the selected time filter.
+	const {
+		data: allFeedbackData,
+		isLoading,
+		isError,
+	} = useQuery({
+		queryKey: ["feedback", filter], // Only refetch when filter changes
+		queryFn: () => getFeedback({ filter, limit: 1000 }), // Fetch up to 1000 records for client-side handling
 	});
 
 	const statusMutation = useMutation({
@@ -48,19 +46,44 @@ export default function AdminFeedbackPage() {
 		},
 	});
 
+	// --- Client-Side Filtering & Searching ---
+	const filteredData = useMemo(() => {
+		if (!allFeedbackData?.data) return [];
+
+		let result = allFeedbackData.data;
+
+		// 1. Apply Search Filter
+		if (search.trim()) {
+			const searchLower = search.toLowerCase();
+			result = result.filter(
+				(item) =>
+					item.message.toLowerCase().includes(searchLower) ||
+					item.email.toLowerCase().includes(searchLower) ||
+					(item.name && item.name.toLowerCase().includes(searchLower)) ||
+					item.reason.toLowerCase().includes(searchLower)
+			);
+		}
+
+		return result;
+	}, [allFeedbackData, search]);
+
+	// --- Client-Side Pagination ---
+	const ITEMS_PER_PAGE = 15;
+	const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
+	const paginatedData = useMemo(() => {
+		const start = (page - 1) * ITEMS_PER_PAGE;
+		return filteredData.slice(start, start + ITEMS_PER_PAGE);
+	}, [filteredData, page]);
+
+	// Reset to page 1 when search or filter changes
+	// Using useEffect instead of useMemo for side effects is better practice here.
+	useEffect(() => {
+		setPage(1);
+	}, [search, filter]);
+
 	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		setSearch(e.target.value);
-		setPage(1); // Reset to page 1 on search
 	};
-
-	useEffect(() => {
-		const handler = setTimeout(() => {
-			setDebouncedSearch(search);
-		}, 300);
-		return () => clearTimeout(handler);
-	}, [search]);
-
-	const totalPages = data ? Math.ceil(data.count / data.limit) : 0;
 
 	const getStatusColor = (status: FeedbackStatus) => {
 		switch (status) {
@@ -76,16 +99,13 @@ export default function AdminFeedbackPage() {
 	};
 
 	const getReasonBadge = (reason: string) => {
-		// Define allowed keys so TypeScript can check indexing
-		const colors: Record<"bug" | "feature" | "general" | "other", string> = {
+		const colors: Record<string, string> = {
 			bug: "bg-red-100 text-red-800",
 			feature: "bg-purple-100 text-purple-800",
 			general: "bg-blue-100 text-blue-800",
 			other: "bg-gray-100 text-gray-800",
 		};
-		// Cast incoming reason to the known key union and fallback to 'other' when unknown
-		const key = reason as "bug" | "feature" | "general" | "other";
-		const colorClass = colors[key] ?? colors.other;
+		const colorClass = colors[reason as keyof typeof colors] || colors.other;
 		return (
 			<span
 				className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${colorClass}`}
@@ -110,7 +130,7 @@ export default function AdminFeedbackPage() {
 							<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
 							<input
 								type="text"
-								placeholder="Search feedback..."
+								placeholder="Search loaded feedback..."
 								value={search}
 								onChange={handleSearchChange}
 								className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 w-full sm:w-64"
@@ -120,7 +140,7 @@ export default function AdminFeedbackPage() {
 							<Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
 							<select
 								value={filter}
-								// @ts-expect-error - value type mismatch safe to ignore here for simple string
+								// @ts-expect-error - simple string value
 								onChange={(e) => setFilter(e.target.value)}
 								className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 appearance-none bg-white w-full sm:w-auto"
 							>
@@ -135,7 +155,7 @@ export default function AdminFeedbackPage() {
 
 				{/* Content */}
 				<div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200">
-					{isLoading && !data ? (
+					{isLoading && !allFeedbackData ? (
 						<div className="p-20 flex justify-center items-center">
 							<Loader2 className="h-10 w-10 animate-spin text-primary-600" />
 						</div>
@@ -143,10 +163,12 @@ export default function AdminFeedbackPage() {
 						<div className="p-10 text-center text-red-500">
 							Failed to load feedback.
 						</div>
-					) : data?.data.length === 0 ? (
+					) : filteredData.length === 0 ? (
 						<div className="p-20 text-center text-gray-500 flex flex-col items-center">
 							<Inbox className="h-12 w-12 mb-4 text-gray-300" />
-							<p>No feedback found.</p>
+							<p>
+								{search ? "No matching feedback found." : "No feedback found."}
+							</p>
 						</div>
 					) : (
 						<div className="overflow-x-auto">
@@ -192,7 +214,7 @@ export default function AdminFeedbackPage() {
 									</tr>
 								</thead>
 								<tbody className="bg-white divide-y divide-gray-200">
-									{data?.data.map((item) => (
+									{paginatedData.map((item: FeedbackItem) => (
 										<tr
 											key={item.id}
 											className="hover:bg-gray-50 transition-colors"
@@ -226,7 +248,9 @@ export default function AdminFeedbackPage() {
 											</td>
 											<td className="px-6 py-4 whitespace-nowrap">
 												<span
-													className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(item.status)} capitalize`}
+													className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(
+														item.status
+													)} capitalize`}
 												>
 													{item.status}
 												</span>
@@ -271,20 +295,22 @@ export default function AdminFeedbackPage() {
 					)}
 
 					{/* Pagination */}
-					{data && data.count > 0 && (
+					{filteredData.length > 0 && (
 						<div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
 							<div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
 								<div>
 									<p className="text-sm text-gray-700">
 										Showing{" "}
 										<span className="font-medium">
-											{(page - 1) * data.limit + 1}
+											{(page - 1) * ITEMS_PER_PAGE + 1}
 										</span>{" "}
 										to{" "}
 										<span className="font-medium">
-											{Math.min(page * data.limit, data.count)}
+											{Math.min(page * ITEMS_PER_PAGE, filteredData.length)}
 										</span>{" "}
-										of <span className="font-medium">{data.count}</span> results
+										of{" "}
+										<span className="font-medium">{filteredData.length}</span>{" "}
+										results
 									</p>
 								</div>
 								<div>
@@ -304,7 +330,7 @@ export default function AdminFeedbackPage() {
 											onClick={() =>
 												setPage((p) => Math.min(totalPages, p + 1))
 											}
-											disabled={page === totalPages}
+											disabled={page === totalPages || totalPages === 0}
 											className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
 										>
 											<span className="sr-only">Next</span>
@@ -324,7 +350,7 @@ export default function AdminFeedbackPage() {
 								</button>
 								<button
 									onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-									disabled={page === totalPages}
+									disabled={page === totalPages || totalPages === 0}
 									className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:bg-gray-100"
 								>
 									Next

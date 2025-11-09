@@ -311,10 +311,10 @@ export default function TrainStatusPage() {
 			{showSchedule && renderScheduleModal()}
 			<div className="container mx-auto max-w-3xl py-6 px-4 pb-24 md:pb-6">
 				<div className="text-center mb-6">
-					<h1 className="text-4xl font-extrabold text-primary-900">
-						{train.name}
+					<h1 className="text-3xl lg:text-4xl font-extrabold text-primary-900">
+						{train.name}{" "}
+						<span className="text-3xl text-primary-700 font-mono">({train.code})</span>
 					</h1>
-					<p className="text-lg text-gray-600 font-mono">{train.code}</p>
 				</div>
 
 				{warning && (

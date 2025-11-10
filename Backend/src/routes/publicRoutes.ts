@@ -1,6 +1,6 @@
 import express from "express";
 import type { Request, Response } from "express";
-import supabase from "../config/supabaseClient.ts";
+import supabase from "../config/supabaseClient.js";
 
 const router = express.Router();
 
@@ -25,7 +25,7 @@ router.get('/routes', async (req: Request, res: Response) => {
   if (error) return res.status(500).json({ error: error.message });
 
   // --- FIX: Parse the 'stations' JSON for each route ---
-  const parsedData = data.map(route => {
+  const parsedData = data.map((route:any) => {
     let stations = [];
     if (route.stations && typeof route.stations === 'string') {
       try {
@@ -52,7 +52,7 @@ router.get('/trains', async (req: Request, res: Response) => {
   if (error) return res.status(500).json({ error: error.message });
 
   // --- FIX: Parse the 'stoppages' JSON for each train ---
-  const parsedTrains = data.map(train => {
+  const parsedTrains = data.map((train:any) => {
     let stoppages = [];
     if (train.stoppages && typeof train.stoppages === 'string') {
       try {
@@ -127,7 +127,7 @@ router.get('/history/:trainId', async (req: Request, res: Response) => {
   }
 
   // Parse 'arrivals' for each historical record
-  const parsedData = data.map(record => {
+  const parsedData = data.map((record:any) => {
     let arrivals = [];
     if (record.arrivals && typeof record.arrivals === 'string') {
       try {

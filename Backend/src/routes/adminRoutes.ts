@@ -1,7 +1,7 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
-import supabase from "../config/supabaseClient.ts";
-import adminAuth from "../middleware/adminAuth.ts";
+import supabase from "../config/supabaseClient.js";
+import adminAuth from "../middleware/adminAuth.js";
 const router = Router();
 
 // This middleware ensures only authenticated admins can access any route in this file.

@@ -1,20 +1,22 @@
 {
   "compilerOptions": {
-    "module": "es2020",
+    "module": "nodenext",
     "target": "es2020",
     "types": ["node"],
     "lib": ["esnext"],
-    "rootDir": "./src", 
-    "outDir": "./dist",      
-    "esModuleInterop": true, 
-    "forceConsistentCasingInFileNames": true, 
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "nodenext", // <-- ADD THIS
 
     // Other Outputs
     "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
-    "allowImportingTsExtensions": true,
-    "noEmit": true,
+    // "allowImportingTsExtensions": true,
+    // "noEmit": true,               <-- MAKE SURE THIS IS COMMENTED OR REMOVED
+    // "emitDeclarationOnly": true,  <-- REMOVE THIS
 
     // Stricter Typechecking Options
     "noUncheckedIndexedAccess": true,
@@ -25,9 +27,9 @@
     "jsx": "react-jsx",
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
-    "noUncheckedSideEffectImports": true,
+    // "noUncheckedSideEffectImports": true, <-- REMOVE THIS
     "moduleDetection": "force",
-    "skipLibCheck": true,
+    "skipLibCheck": true
   },
-  "include": ["src/**/*"] 
+  "include": ["src/**/*"]
 }

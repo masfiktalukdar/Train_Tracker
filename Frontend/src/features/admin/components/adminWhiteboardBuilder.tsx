@@ -164,6 +164,37 @@ export default function AdminWhiteBoardBuilder({
 	const onMouseUp = () => {
 		setIsPanning(false);
 	};
+
+	const onTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+		if (e.touches.length !== 1) return;
+		const touch = e.touches[0];
+		e.preventDefault(); // Prevent default touch behavior
+		setIsPanning(true);
+		const startPoint = getSvgPoint(touch.clientX, touch.clientY);
+		panStartRef.current = {
+			startX: startPoint.x,
+			startY: startPoint.y,
+			viewportX: viewport.x,
+			viewportY: viewport.y,
+		};
+	};
+
+	const onTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+		if (!isPanning || e.touches.length !== 1) return;
+		const touch = e.touches[0];
+		e.preventDefault(); // Prevent page scrolling
+		const { startX, startY, viewportX, viewportY } = panStartRef.current;
+		const newPoint = getSvgPoint(touch.clientX, touch.clientY);
+		const deltaX = newPoint.x - startX;
+		const deltaY = newPoint.y - startY;
+		setViewport((v) => ({
+			...v,
+			x: viewportX + deltaX,
+			y: viewportY + deltaY,
+		}));
+	};
+
+
 	const zoom = (factor: number) => {
 		setViewport((v) => {
 			if (!svgRef.current) return v;
@@ -199,6 +230,13 @@ export default function AdminWhiteBoardBuilder({
 			onMouseMove={onMouseMove}
 			onMouseUp={onMouseUp}
 			onMouseLeave={onMouseUp}
+			// Touch handlers
+
+			onTouchStart={onTouchStart}
+			onTouchMove={onTouchMove}
+			onTouchEnd={onMouseUp}
+			onTouchCancel={onMouseUp}
+
 			className="w-full h-[50vh] md:h-[600px] mb-5 relative bg-gray-100 border border-gray-300 rounded-lg overflow-hidden cursor-grab active:cursor-grabbing"
 		>
 			<svg ref={svgRef} className="w-full h-full select-none">

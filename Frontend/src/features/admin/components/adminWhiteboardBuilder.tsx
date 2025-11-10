@@ -6,7 +6,7 @@ import { Move, RotateCw, Trash2, ZoomIn, ZoomOut } from "lucide-react";
 import type { ApiRoute } from "@/features/admin/api/routesApi";
 import { updateRoute, deleteRoute } from "@/features/admin/api/routesApi";
 import { getStations, ApiStation } from "@/features/admin/api/stationsApi"; // We'll use the station API
-import type { Station } from "@/store/adminStationStore"; // Keep using this simple type for logic
+import type { Station } from "@/types/dataModels"; // Keep using this simple type for logic
 
 // Helper function to auto-name routes
 function formatRouteName(stations: Station[]) {

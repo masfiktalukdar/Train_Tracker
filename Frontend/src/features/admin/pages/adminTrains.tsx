@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, Loader2 } from "lucide-react";
 import TrainCard from "@features/admin/components/AdminTrainCart";
-import TrainFormDialog from "@features/admin/components/adminTrainFormDialoge";
+import TrainFormDialog from "@features/admin/components/AdminTrainFormDialoge";
 import TrainJourneyModal from "@features/admin/components/adminTrainJourneyModal";
 import Footer from "@components/footer";
 import { getRoutes, ApiRoute } from "@features/admin/api/routesApi";

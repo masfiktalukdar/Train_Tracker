@@ -1,8 +1,10 @@
 import axios from 'axios';
 import { useAuthStore } from '@/store/useAuthStore';
 
+const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+
 const apiClient = axios.create({
-  baseURL: 'http://localhost:3000/api', // Or your backend port
+  baseURL: API_URL, // Or your backend port
 });
 
 // Interceptor 1: Runs BEFORE every request is sent

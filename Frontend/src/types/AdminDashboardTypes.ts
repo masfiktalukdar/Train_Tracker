@@ -1,8 +1,6 @@
 export type ChartDataEntry = {
-  date: string; // "Oct '25"
+  date: string; // "YYYY-MM-DD"
   registrationCount: number;
-  month: string; // "Oct"
-  showMonthLabel: boolean;
 };
 
 /**

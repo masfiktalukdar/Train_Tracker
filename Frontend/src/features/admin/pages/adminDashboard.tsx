@@ -19,22 +19,9 @@ import {
 	XAxis,
 	YAxis,
 } from "recharts";
-import type { ChartDataEntry } from "@app-types/AdminDashboardTypes";
+// import type { ChartDataEntry } from "@app-types/AdminDashboardTypes";
 import { getDashboardStats } from "@/features/admin/api/dashboardApi";
 import Footer from "@/components/footer";
-
-// Helper to format chart labels
-const formatChartData = (data: ChartDataEntry[]): ChartDataEntry[] => {
-	const seenMonths = new Set();
-	return data.map((entry) => {
-		const month = entry.month;
-		if (!seenMonths.has(month)) {
-			seenMonths.add(month);
-			return { ...entry, showMonthLabel: true };
-		}
-		return { ...entry, showMonthLabel: false };
-	});
-};
 
 export default function AdminDashboard() {
 	const {
@@ -82,7 +69,8 @@ export default function AdminDashboard() {
 		},
 	];
 
-	const formattedChartData = stats ? formatChartData(stats.chartData) : [];
+	// The data is now ready to be used directly from the API
+	const formattedChartData = stats?.chartData ?? [];
 
 	return (
 		<div className="w-full flex-1 min-h-full bg-primary-100 flex flex-col">
@@ -132,19 +120,23 @@ export default function AdminDashboard() {
 					) : (
 						<LineChart
 							data={formattedChartData}
-							margin={{ top: 30, right: 30, left: 10, bottom: 5 }}
+							margin={{ top: 30, right: 30, left: -20, bottom: 5 }}
 						>
 							<CartesianGrid strokeDasharray="3 3" vertical={false} />
 							<XAxis
 								dataKey="date"
-								tickFormatter={(_, index) => {
-									const entry = formattedChartData[index];
-									// Show month label only for the first entry of that month
-									return entry?.showMonthLabel ? entry.month : "";
+								tickFormatter={(dateStr: string) => {
+									const date = new Date(dateStr + "T00:00:00");
+									const dayOfMonth = date.getDate();
+
+									if (dayOfMonth === 1) {
+										return date.toLocaleDateString("en-US", { month: "short" });
+									}
+									return "";
 								}}
 								interval={0}
 								tick={{
-									fontSize: 14, // Responsive font size
+									fontSize: 14,
 									fill: "#064f86",
 								}}
 								tickLine={false}
@@ -158,6 +150,15 @@ export default function AdminDashboard() {
 								allowDecimals={false}
 							/>
 							<Tooltip
+								labelFormatter={(label) => {
+									const date = new Date(label + "T00:00:00");
+									return date.toLocaleDateString("en-US", {
+										weekday: "short",
+										year: "numeric",
+										month: "short",
+										day: "numeric",
+									});
+								}}
 								formatter={(value, name) => [`${value} users`, `${name}`]}
 							/>
 							<Line

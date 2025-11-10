@@ -36,7 +36,6 @@ const parseTrain = (train) => {
     return { ...train, stoppages };
 };
 // === DASHBOARD STATS ===
-// ... (your existing /dashboard/stats route is fine) ...
 router.get("/dashboard/stats", async (req, res) => {
     try {
         // --- 1. Get all counts in parallel ---
@@ -49,38 +48,35 @@ router.get("/dashboard/stats", async (req, res) => {
         // --- 2. Get user registration data for the chart ---
         const sixMonthsAgo = new Date();
         sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-        sixMonthsAgo.setDate(1);
+        sixMonthsAgo.setDate(1); // Start from the 1st of that month
         const { data: users, error: usersError } = await supabase
             .from("profiles")
             .select("created_at")
             .gt("created_at", sixMonthsAgo.toISOString());
         if (usersError)
             throw usersError;
-        // --- 3. Process data in JavaScript ---
+        // --- 3. Process data in JavaScript (MODIFIED FOR DAILY) ---
         const counts = new Map();
-        const monthFormatter = new Intl.DateTimeFormat("en-US", {
-            month: "short",
-            year: "2-digit",
-        });
-        for (let i = 5; i >= 0; i--) {
-            const date = new Date();
-            date.setMonth(date.getMonth() - i);
-            const key = monthFormatter.format(date);
+        const today = new Date();
+        // Initialize map with all days from 6 months ago to today
+        for (let d = new Date(sixMonthsAgo); d <= today; d.setDate(d.getDate() + 1)) {
+            const key = d.toISOString().split("T")[0]; // "YYYY-MM-DD"
             counts.set(key, 0);
         }
+        // Aggregate user signups by day
         if (users) {
             for (const user of users) {
-                const key = monthFormatter.format(new Date(user.created_at));
+                // Get "YYYY-MM-DD" from the user's timestamp
+                const key = new Date(user.created_at).toISOString().split("T")[0];
                 if (counts.has(key)) {
                     counts.set(key, counts.get(key) + 1);
                 }
             }
         }
+        // Format for chart, matching new ChartDataEntry type
         const chartData = Array.from(counts.entries()).map(([date, count]) => ({
-            date: date,
+            date: date, // "YYYY-MM-DD"
             registrationCount: count,
-            month: date.split(" ")[0],
-            showMonthLabel: true,
         }));
         // --- 4. Consolidate all stats ---
         const stats = {
@@ -274,7 +270,15 @@ router.delete('/trains/:id', async (req, res) => {
 // =================================================================
 router.get('/feedback', async (req, res) => {
     try {
-        const { page = 1, search = '', filter = 'all' } = req.query;
+        const { page = 1, filter = 'all' } = req.query;
+        // FIX: Ensure 'search' is a string
+        let search;
+        if (typeof req.query.search === 'string') {
+            search = req.query.search;
+        }
+        else {
+            search = ''; // Default to empty string if not provided, undefined, or is an array
+        }
         const limit = 15;
         const from = (Number(page) - 1) * limit;
         const to = from + limit - 1;

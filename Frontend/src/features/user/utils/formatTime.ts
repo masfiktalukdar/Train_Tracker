@@ -1,6 +1,6 @@
 /**
  * Converts a 24-hour time string (e.g., "13:10" or "09:05")
- * into a 12-hour AM/PM format (e.g., "01:10 PM" or "09:05 AM").
+ * into a 12-hour AM/PM format (e.g., "1:10 PM" or "9:05 AM").
  */
 export function format24HourTime(time: string | undefined | null): string {
   if (!time) {
@@ -16,10 +16,10 @@ export function format24HourTime(time: string | undefined | null): string {
     const ampm = hours >= 12 ? "PM" : "AM";
     const h12 = hours % 12 || 12; // Convert 0 or 12 to 12
 
-    const h12Padded = h12.toString().padStart(2, "0");
+    const h12String = h12.toString(); // No leading zero
     const mPadded = minutes.toString().padStart(2, "0");
 
-    return `${h12Padded}:${mPadded} ${ampm}`;
+    return `${h12String}:${mPadded} ${ampm}`;
   } catch (e) {
     console.error("Failed to format time:", time, e);
     return time; // Return original string on error
@@ -28,7 +28,7 @@ export function format24HourTime(time: string | undefined | null): string {
 
 /**
  * Formats an ISO date string (or Date object) into a 12-hour AM/PM time.
- * e.g., "2024-10-27T13:15:00.000Z" -> "01:15 PM"
+ * e.g., "2024-10-27T13:15:00.000Z" -> "1:15 PM"
  */
 export function formatTimeFromDate(
   date: string | Date | number | undefined | null
@@ -38,8 +38,9 @@ export function formatTimeFromDate(
   }
   try {
     const d = new Date(date);
-    return d.toLocaleTimeString([], {
-      hour: "2-digit",
+    // Using 'en-US' locale inherently gives 12-hour format without leading zero
+    return d.toLocaleTimeString("en-US", {
+      hour: "numeric",
       minute: "2-digit",
     });
   } catch (e) {

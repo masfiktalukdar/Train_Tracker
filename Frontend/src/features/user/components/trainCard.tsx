@@ -3,8 +3,8 @@ import { Train, ChevronRight, CheckCircle, Clock, MapPin } from "lucide-react";
 import type { ApiTrain } from "@/features/admin/api/trainsApi";
 import type { ApiRoute } from "@/features/admin/api/routesApi";
 import type { DailyTrainStatus } from "@/features/admin/api/statusApi";
-import { getFullJourney, parseTimeToToday } from "../utils/predictionLogic";
-import { format24HourTime, formatTimeFromDate } from "../utils/formatTime";
+import { getFullJourney } from "../utils/predictionLogic";
+import { format24HourTime } from "../utils/formatTime";
 import type { Station } from "@/types/dataModels";
 
 type TrainCardProps = {
@@ -12,8 +12,6 @@ type TrainCardProps = {
 	route?: ApiRoute;
 	status?: DailyTrainStatus | null;
 };
-
-const FIVE_MINUTES_MS = 1000 * 60 * 5;
 
 // Helper to get the scheduled time for a station from stoppages
 function getScheduledTime(
@@ -39,23 +37,19 @@ export default function TrainCard({ train, route, status }: TrainCardProps) {
 		? getFullJourney(route.stations, train.stoppages, train.direction)
 		: [];
 
-	// Find the length of the first leg (before turnaround)
+	// --- NEW LOGIC based on arrivals vs departures ---
+	const arrivalsCount = status?.arrivals?.length ?? 0;
+	const departuresCount = status?.departures?.length ?? 0; // Use departures
+	const lastArrival =
+		arrivalsCount > 0 ? status?.arrivals?.[arrivalsCount - 1] : undefined;
+	const nextStation = journey[arrivalsCount]; // Next to arrive
+
+	// Calculate first leg length
 	const firstLegLength = route
 		? route.stations.filter((s) =>
 				train.stoppages.some((ts) => ts.stationId === s.stationId)
 			).length
 		: 0;
-
-	const turnaroundStation = journey[firstLegLength - 1];
-
-	const lastArrivalIndex = status?.arrivals.length
-		? status.arrivals.length - 1
-		: -1;
-	const lastArrival = status?.arrivals[lastArrivalIndex];
-	const currentStation = lastArrival
-		? journey.find((s) => s.stationId === lastArrival.stationId)
-		: null;
-	const nextStation = journey[lastArrivalIndex + 1];
 
 	let statusText = "Pending Departure";
 	let statusDetail = "Awaiting first departure";
@@ -70,7 +64,7 @@ export default function TrainCard({ train, route, status }: TrainCardProps) {
 		: null;
 	const formattedFirstTime = format24HourTime(firstStationTime);
 
-	if (!status || status.arrivals.length === 0) {
+	if (!status || arrivalsCount === 0) {
 		// PENDING (Not started)
 		statusText = "Pending Departure";
 		statusDetail = `Will start at ~ ${formattedFirstTime}`;
@@ -82,46 +76,37 @@ export default function TrainCard({ train, route, status }: TrainCardProps) {
 		iconColor = "text-green-600";
 		bgColor = "bg-green-100";
 		barColor = "bg-green-500";
-	} else if (currentStation && nextStation) {
-		// EN ROUTE or AT STATION
+	} else if (arrivalsCount > departuresCount && lastArrival) {
+		// AT STATION (Arrived, not departed)
 		const isAtTurnaround =
-			currentStation.stationId === turnaroundStation?.stationId &&
-			lastArrivalIndex === firstLegLength - 1;
+			lastArrival && firstLegLength > 0 && arrivalsCount === firstLegLength;
 
 		if (isAtTurnaround) {
-			// --- TURNAROUND LOGIC ---
-			// 1. Get the scheduled time for the START of the SECOND leg
-			const returnLegScheduledTime = getScheduledTime(
-				train,
-				currentStation.stationId,
-				"second"
-			);
-			// 2. Add 5 minutes to it
-			const departureTimestamp =
-				parseTimeToToday(returnLegScheduledTime || "") + FIVE_MINUTES_MS;
-
-			statusText = "At Turnaround";
-			statusDetail = `Departs ${
-				currentStation.stationName.split(" ")[0]
-			} at ~ ${formatTimeFromDate(departureTimestamp)}`;
+			statusText = `At ${lastArrival.stationName.split(" ")[0]} (Turnaround)`;
+			statusDetail = "Waiting for turnaround...";
 			StatusIcon = MapPin;
-			iconColor = "text-red-600";
+			iconColor = "text-red-600"; // Use red for turnaround
 			bgColor = "bg-red-100";
 			barColor = "bg-red-500";
 		} else {
-			// --- NORMAL EN ROUTE LOGIC ---
-			statusText = `En Route to ${
-				nextStation ? nextStation.stationName.split(" ")[0] : "End"
-			}`;
-			statusDetail = `Last seen at ${currentStation.stationName.split(" ")[0]}`;
-			StatusIcon = Train;
-			iconColor = "text-blue-600";
-			bgColor = "bg-blue-100";
-			barColor = "bg-blue-500";
+			statusText = `At ${lastArrival.stationName.split(" ")[0]}`;
+			statusDetail = "Waiting for departure...";
+			StatusIcon = MapPin;
+			iconColor = "text-yellow-600"; // Use yellow for regular stops
+			bgColor = "bg-yellow-100";
+			barColor = "bg-yellow-500";
 		}
-	} else if (currentStation) {
-		// At final station (but not yet marked 'lap_completed')
-		statusText = `At ${currentStation.stationName.split(" ")[0]}`;
+	} else if (arrivalsCount === departuresCount && nextStation && lastArrival) {
+		// EN ROUTE (Departed, not yet arrived at next)
+		statusText = `En Route to ${nextStation.stationName.split(" ")[0]}`;
+		statusDetail = `Departed from ${lastArrival.stationName.split(" ")[0]}`;
+		StatusIcon = Train;
+		iconColor = "text-blue-600";
+		bgColor = "bg-blue-100";
+		barColor = "bg-blue-500";
+	} else if (arrivalsCount > 0 && !nextStation && lastArrival) {
+		// AT FINAL STATION (Arrived at last stop, not yet marked complete)
+		statusText = `At ${lastArrival.stationName.split(" ")[0]}`;
 		statusDetail = "Final destination reached.";
 		StatusIcon = MapPin;
 		iconColor = "text-green-600";

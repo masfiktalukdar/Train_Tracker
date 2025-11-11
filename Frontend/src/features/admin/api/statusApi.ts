@@ -12,12 +12,21 @@ export type StationArrivalRecord = {
   arrivedAt: string; // ISO timestamp
 };
 
-// This matches your 'daily_status' table and your old Zustand store
+// NEW: Departure Record Type
+export type StationDepartureRecord = {
+  id: string; // uuid for this specific departure
+  stationId: string;
+  stationName: string;
+  departedAt: string; // ISO timestamp
+};
+
+// This matches your 'daily_status' table
 export type DailyTrainStatus = {
   train_id: number;
   date: string; // "YYYY-MM-DD"
   lap_completed: boolean;
   arrivals: StationArrivalRecord[];
+  departures: StationDepartureRecord[]; // NEW
   last_completed_station_id: string | null;
 };
 
@@ -39,6 +48,10 @@ export const getDailyStatus = async (
     const { data } = await apiClient.get(
       `/public/status/${trainId}?date=${date}`
     );
+    // Ensure departures is an array if it's null/undefined
+    if (data) {
+      data.departures = data.departures || [];
+    }
     return data;
   } catch (error) {
     console.error("Failed to fetch status", error);
@@ -54,5 +67,9 @@ export const updateDailyStatus = async (
   payload: UpdateStatusPayload
 ): Promise<DailyTrainStatus> => {
   const { data } = await apiClient.post("/admin/status/update", payload);
+  // Ensure departures is an array if it's null/undefined
+  if (data) {
+    data.departures = data.departures || [];
+  }
   return data;
 };

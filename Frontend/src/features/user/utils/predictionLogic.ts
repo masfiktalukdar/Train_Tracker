@@ -3,6 +3,7 @@ import type { Station, TrainStoppage } from "@/types/dataModels";
 
 const AVG_TRAVEL_TIME = "AVG_TRAVEL_TIME";
 const CACHE_TTL = 1000 * 60 * 60; // 1 hour cache
+const FIVE_MINUTES_MS = 1000 * 60 * 5;
 
 type TravelTimeCache = {
   [key: string]: {
@@ -13,14 +14,14 @@ type TravelTimeCache = {
 
 /**
  * Calculates the average travel time in milliseconds between two stations from 7-day history.
- * Implements caching in localStorage to avoid re-calculating on every load.
+ * UPDATED: Calculates from stationA's DEPARTURE to stationB's ARRIVAL.
  */
 export function getAverageTravelTime(
   history: TrainHistoryRecord[],
   stationA_id: string,
   stationB_id: string
 ): number | null {
-  const cacheKey = `${AVG_TRAVEL_TIME}_${stationA_id}_${stationB_id}`;
+  const cacheKey = `${AVG_TRAVEL_TIME}_${stationA_id}_${stationB_id}_V2`; // V2 for new logic
 
   try {
     const cached = localStorage.getItem(cacheKey);
@@ -38,21 +39,27 @@ export function getAverageTravelTime(
 
   for (const record of history) {
     const arrivals = record.arrivals || [];
-    let timeA: number | null = null;
-    let timeB: number | null = null;
+    const departures = record.departures || []; // NEW
+    let timeA: number | null = null; // Departure time from A
+    let timeB: number | null = null; // Arrival time at B
 
-    // Find the arrival times for A and B in this day's record
-    for (const arrival of arrivals) {
-      if (arrival.stationId === stationA_id) {
-        timeA = new Date(arrival.arrivedAt).getTime();
+    // Find the departure time for A
+    for (const departure of departures) {
+      if (departure.stationId === stationA_id) {
+        timeA = new Date(departure.departedAt).getTime();
+        break; // Found departure from A
       }
-      if (arrival.stationId === stationB_id) {
-        timeB = new Date(arrival.arrivedAt).getTime();
-      }
-      if (timeA && timeB) break;
     }
 
-    // If we found both arrivals and B is after A, record the duration
+    // Find the arrival time for B
+    for (const arrival of arrivals) {
+      if (arrival.stationId === stationB_id) {
+        timeB = new Date(arrival.arrivedAt).getTime();
+        break; // Found arrival at B
+      }
+    }
+
+    // If we found both and B is after A, record the duration
     if (timeA && timeB && timeB > timeA) {
       const duration = timeB - timeA;
       // Sanity check: ignore travel times over 12 hours
@@ -83,20 +90,20 @@ export function getAverageTravelTime(
 
 /**
  * Gets the admin-defined default travel time between two stations as a fallback.
- * This is based on the default schedule.
+ * UPDATED: Calculates from stationA's DEPARTURE to stationB's ARRIVAL.
  */
 export function getDefaultTravelTime(
   stoppages: TrainStoppage[],
   stationA_id: string,
   stationB_id: string,
-  legDirection: "up" | "down" // --- ADDED: We need to know which leg we are on
+  legDirection: "up" | "down",
+  isFirstStation: boolean // NEW: Is stationA the first station of the leg?
 ): number | null {
   const stoppageA = stoppages.find((s) => s.stationId === stationA_id);
   const stoppageB = stoppages.find((s) => s.stationId === stationB_id);
 
   if (!stoppageA || !stoppageB) return null;
 
-  // --- MODIFIED: Use the explicit legDirection ---
   const timeStrA =
     legDirection === "up"
       ? stoppageA.upArrivalTime
@@ -106,30 +113,28 @@ export function getDefaultTravelTime(
       ? stoppageB.upArrivalTime
       : stoppageB.downArrivalTime;
 
-  let timeA = parseTimeToToday(timeStrA);
-  let timeB = parseTimeToToday(timeStrB);
+  const arrivalTimeA = parseTimeToToday(timeStrA);
+  const arrivalTimeB = parseTimeToToday(timeStrB);
 
-  if (timeA > 0 && timeB > 0) {
-    if (timeB > timeA) {
-      return timeB - timeA; // Simple case: 10:00 -> 11:00
-    } else {
-      // Handle midnight wrap-around: 23:00 -> 01:00
-      timeB = parseTimeToToday(timeStrB, true); // Add a day to B
-      if (timeB > timeA) {
-        return timeB - timeA;
-      }
-    }
+  if (arrivalTimeA === 0 || arrivalTimeB === 0) return null;
+
+  // Departure from A is arrival + 5 mins, UNLESS it's the first station
+  const departureTimeA = arrivalTimeA + (isFirstStation ? 0 : FIVE_MINUTES_MS);
+
+  // Handle midnight wrap-around for B
+  let duration = arrivalTimeB - departureTimeA;
+  if (duration < 0) {
+    // B is on the next day
+    const arrivalTimeBNextDay = parseTimeToToday(timeStrB, true);
+    duration = arrivalTimeBNextDay - departureTimeA;
   }
 
-  // --- ADDED: Fallback check for "opposite" day wrap-around ---
-  // E.g., Leg is "up", but 23:00 (up) -> 01:00 (up) fails.
-  // Try parsing B as "next day"
-  timeA = parseTimeToToday(timeStrA);
-  timeB = parseTimeToToday(timeStrB, true); // Add a day
-  if (timeA > 0 && timeB > 0 && timeB > timeA) return timeB - timeA;
+  // Sanity check
+  if (duration < 0 || duration > 1000 * 60 * 60 * 12) {
+    return null;
+  }
 
-
-  return null; // Could not calculate
+  return duration;
 }
 
 /**

@@ -130,6 +130,16 @@ export type StationArrivalRecord = {
 };
 
 /**
+ * NEW: A single departure record inside the 'departures' JSONB array.
+ */
+export type StationDepartureRecord = {
+  id: string; // uuid
+  stationId: string; // The station it departed from
+  stationName: string;
+  departedAt: string; // ISO timestamp
+};
+
+/**
  * The full Daily Status object as it comes from the Supabase API.
  */
 export type DailyTrainStatus = {
@@ -137,5 +147,6 @@ export type DailyTrainStatus = {
   date: string; // "YYYY-MM-DD"
   lap_completed: boolean;
   arrivals: StationArrivalRecord[];
+  departures: StationDepartureRecord[]; // NEW
   last_completed_station_id: string | null;
 };

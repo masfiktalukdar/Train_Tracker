@@ -7,7 +7,7 @@ router.use(adminAuth);
 // --- ADDED: Helper functions to parse JSON fields ---
 const parseRoute = (route) => {
     let stations = [];
-    if (route.stations && typeof route.stations === 'string') {
+    if (route.stations && typeof route.stations === "string") {
         try {
             stations = JSON.parse(route.stations);
         }
@@ -22,7 +22,7 @@ const parseRoute = (route) => {
 };
 const parseTrain = (train) => {
     let stoppages = [];
-    if (train.stoppages && typeof train.stoppages === 'string') {
+    if (train.stoppages && typeof train.stoppages === "string") {
         try {
             stoppages = JSON.parse(train.stoppages);
         }
@@ -99,27 +99,30 @@ router.get("/dashboard/stats", async (req, res) => {
     }
 });
 // === LIVE STATUS API ===
-router.post('/status/update', async (req, res) => {
-    const { train_id, date, lap_completed, arrivals, last_completed_station_id } = req.body;
+router.post("/status/update", async (req, res) => {
+    // UPDATED: Added 'departures'
+    const { train_id, date, lap_completed, arrivals, departures, // NEW
+    last_completed_station_id, } = req.body;
     const { data, error } = await supabase
-        .from('daily_status')
+        .from("daily_status")
         .upsert({
         train_id,
         date,
         lap_completed,
         arrivals,
+        departures, // NEW
         last_completed_station_id,
     }, {
-        onConflict: 'train_id, date',
+        onConflict: "train_id, date",
     })
         .select()
         .single();
     if (error) {
-        console.error('Supabase upsert error:', error);
+        console.error("Supabase upsert error:", error);
         return res.status(500).json({ error: error.message });
     }
     // This route is fine, it already parses 'arrivals'
-    if (data && data.arrivals && typeof data.arrivals === 'string') {
+    if (data && data.arrivals && typeof data.arrivals === "string") {
         try {
             data.arrivals = JSON.parse(data.arrivals);
         }
@@ -130,17 +133,29 @@ router.post('/status/update', async (req, res) => {
     else if (data && !data.arrivals) {
         data.arrivals = [];
     }
+    // NEW: Parse 'departures'
+    if (data && data.departures && typeof data.departures === "string") {
+        try {
+            data.departures = JSON.parse(data.departures);
+        }
+        catch (e) {
+            data.departures = [];
+        }
+    }
+    else if (data && !data.departures) {
+        data.departures = [];
+    }
     res.json(data);
 });
 // =================================================================
 // --- STATION ROUTES ---
 // =================================================================
 // CREATE a new station
-router.post('/stations', async (req, res) => {
+router.post("/stations", async (req, res) => {
     const { stationId, stationName, stationLocation, stationLocationURL } = req.body;
     // Map frontend camelCase to backend snake_case
     const { data, error } = await supabase
-        .from('stations')
+        .from("stations")
         .insert({
         station_id: stationId,
         station_name: stationName,
@@ -154,13 +169,13 @@ router.post('/stations', async (req, res) => {
     res.status(201).json(data); // This is fine, no JSON fields
 });
 // UPDATE an existing station
-router.put('/stations/:id', async (req, res) => {
+router.put("/stations/:id", async (req, res) => {
     const { id } = req.params;
     const updates = req.body; // Frontend already sends snake_case for updates
     const { data, error } = await supabase
-        .from('stations')
+        .from("stations")
         .update(updates)
-        .eq('id', id)
+        .eq("id", id)
         .select()
         .single();
     if (error)
@@ -169,12 +184,9 @@ router.put('/stations/:id', async (req, res) => {
 });
 // DELETE a station
 // ... (your existing delete station route is fine) ...
-router.delete('/stations/:id', async (req, res) => {
+router.delete("/stations/:id", async (req, res) => {
     const { id } = req.params;
-    const { error } = await supabase
-        .from('stations')
-        .delete()
-        .eq('id', id);
+    const { error } = await supabase.from("stations").delete().eq("id", id);
     if (error)
         return res.status(500).json({ error: error.message });
     res.status(204).send(); // 204 No Content
@@ -183,10 +195,10 @@ router.delete('/stations/:id', async (req, res) => {
 // --- ROUTE ROUTES ---
 // =================================================================
 // CREATE a new route
-router.post('/routes', async (req, res) => {
+router.post("/routes", async (req, res) => {
     const { name, stations } = req.body;
     const { data, error } = await supabase
-        .from('routes')
+        .from("routes")
         .insert({ name, stations }) // Body matches table structure
         .select()
         .single();
@@ -196,13 +208,13 @@ router.post('/routes', async (req, res) => {
     res.status(201).json(parseRoute(data));
 });
 // UPDATE an existing route
-router.put('/routes/:id', async (req, res) => {
+router.put("/routes/:id", async (req, res) => {
     const { id } = req.params;
     const { name, stations } = req.body; // Body matches table structure
     const { data, error } = await supabase
-        .from('routes')
+        .from("routes")
         .update({ name, stations })
-        .eq('id', id)
+        .eq("id", id)
         .select()
         .single();
     if (error)
@@ -212,12 +224,9 @@ router.put('/routes/:id', async (req, res) => {
 });
 // DELETE a route
 // ... (your existing delete route is fine) ...
-router.delete('/routes/:id', async (req, res) => {
+router.delete("/routes/:id", async (req, res) => {
     const { id } = req.params;
-    const { error } = await supabase
-        .from('routes')
-        .delete()
-        .eq('id', id);
+    const { error } = await supabase.from("routes").delete().eq("id", id);
     if (error)
         return res.status(500).json({ error: error.message });
     res.status(204).send(); // 204 No Content
@@ -226,10 +235,10 @@ router.delete('/routes/:id', async (req, res) => {
 // --- TRAIN ROUTES ---
 // =================================================================
 // CREATE a new train
-router.post('/trains', async (req, res) => {
+router.post("/trains", async (req, res) => {
     const { name, code, direction, route_id, stoppages } = req.body;
     const { data, error } = await supabase
-        .from('trains')
+        .from("trains")
         .insert({ name, code, direction, route_id, stoppages })
         .select()
         .single();
@@ -239,13 +248,13 @@ router.post('/trains', async (req, res) => {
     res.status(201).json(parseTrain(data));
 });
 // UPDATE an existing train
-router.put('/trains/:id', async (req, res) => {
+router.put("/trains/:id", async (req, res) => {
     const { id } = req.params;
     const updates = req.body; // Frontend sends partial data matching table
     const { data, error } = await supabase
-        .from('trains')
+        .from("trains")
         .update(updates)
-        .eq('id', id)
+        .eq("id", id)
         .select()
         .single();
     if (error)
@@ -255,12 +264,9 @@ router.put('/trains/:id', async (req, res) => {
 });
 // DELETE a train
 // ... (your existing delete train route is fine) ...
-router.delete('/trains/:id', async (req, res) => {
+router.delete("/trains/:id", async (req, res) => {
     const { id } = req.params;
-    const { error } = await supabase
-        .from('trains')
-        .delete()
-        .eq('id', id);
+    const { error } = await supabase.from("trains").delete().eq("id", id);
     if (error)
         return res.status(500).json({ error: error.message });
     res.status(204).send(); // 204 No Content
@@ -268,46 +274,46 @@ router.delete('/trains/:id', async (req, res) => {
 // =================================================================
 // --- FEEDBACK ROUTES (ADMIN) ---
 // =================================================================
-router.get('/feedback', async (req, res) => {
+router.get("/feedback", async (req, res) => {
     try {
-        const { page = 1, filter = 'all' } = req.query;
+        const { page = 1, filter = "all" } = req.query;
         // FIX: Ensure 'search' is a string
         let search;
-        if (typeof req.query.search === 'string') {
+        if (typeof req.query.search === "string") {
             search = req.query.search;
         }
         else {
-            search = ''; // Default to empty string if not provided, undefined, or is an array
+            search = ""; // Default to empty string if not provided, undefined, or is an array
         }
         const limit = 15;
         const from = (Number(page) - 1) * limit;
         const to = from + limit - 1;
         let query = supabase
-            .from('feedback')
-            .select('*', { count: 'exact' })
-            .order('created_at', { ascending: false })
+            .from("feedback")
+            .select("*", { count: "exact" })
+            .order("created_at", { ascending: false })
             .range(from, to);
         // --- SEARCH ---
         if (search) {
             query = query.or(`message.ilike.%${search}%,reason.ilike.%${search}%,email.ilike.%${search}%`);
         }
         // --- TIME FILTER ---
-        if (filter !== 'all') {
+        if (filter !== "all") {
             const now = new Date();
             let filterDate = new Date();
             switch (filter) {
-                case 'today':
+                case "today":
                     filterDate.setHours(0, 0, 0, 0);
                     break;
-                case 'week':
+                case "week":
                     filterDate.setDate(now.getDate() - 7);
                     break;
-                case 'month':
+                case "month":
                     filterDate.setMonth(now.getMonth() - 1);
                     break;
             }
-            if (filter !== 'all') {
-                query = query.gte('created_at', filterDate.toISOString());
+            if (filter !== "all") {
+                query = query.gte("created_at", filterDate.toISOString());
             }
         }
         const { data, count, error } = await query;
@@ -317,17 +323,19 @@ router.get('/feedback', async (req, res) => {
     }
     catch (error) {
         console.error("Error fetching feedback:", error);
-        res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+        res
+            .status(500)
+            .json({ error: error instanceof Error ? error.message : "Unknown error" });
     }
 });
 // OPTIONAL: Mark feedback as read/archived
-router.patch('/feedback/:id/status', async (req, res) => {
+router.patch("/feedback/:id/status", async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
     const { data, error } = await supabase
-        .from('feedback')
+        .from("feedback")
         .update({ status })
-        .eq('id', id)
+        .eq("id", id)
         .select()
         .single();
     if (error)

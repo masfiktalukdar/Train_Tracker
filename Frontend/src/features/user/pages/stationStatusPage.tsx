@@ -10,8 +10,9 @@ import {
 import LoadingSpinner from "@features/user/components/loadingSpinner";
 import ErrorDisplay from "@features/user/components/errorDisplay";
 import TrainCard from "@features/user/components/trainCard";
-import { getRoutes, ApiRoute } from "@/features/admin/api/routesApi";
+import { getRoutes, ApiRoute } from "@features/admin/api/routesApi";
 import { MapPin, ExternalLink } from "lucide-react";
+import { getFullJourney } from "../utils/predictionLogic"; // Import helper
 
 export default function StationStatusPage() {
 	const { stationId } = useParams<{ stationId: string }>();
@@ -54,6 +55,7 @@ export default function StationStatusPage() {
 			queryKey: ["dailyStatus", train.id, today],
 			queryFn: () => getDailyStatus(train.id, today),
 			staleTime: 1000 * 60, // Cache status for 1 minute
+			refetchInterval: 10000, // Refetch every 10 seconds
 		})),
 	});
 
@@ -76,63 +78,58 @@ export default function StationStatusPage() {
 			const status = statusResult.data as DailyTrainStatus | null;
 			if (!status || status.lap_completed) return;
 
-			// Check if "Arrived Now"
-			// We also check if 5 minutes have passed since arrival to move it out of "Arrived Now"
-			const lastArrivalRecord = status.arrivals[status.arrivals.length - 1];
-			if (status.last_completed_station_id === stationId && lastArrivalRecord) {
-				const arrivalTime = new Date(lastArrivalRecord.arrivedAt).getTime();
-				const now = Date.now();
-				// If it arrived less than 5 mins ago, it's still "Arrived Now"
-				if (now - arrivalTime < 5 * 60 * 1000) {
-					arrived.push(train);
-					return;
-				}
-				// If more than 5 mins, it has departed, so it shouldn't be in "Arrived Now"
+			const arrivalsCount = status.arrivals.length || 0;
+			const departuresCount = status.departures?.length || 0;
+			const lastArrivalRecord = status.arrivals[arrivalsCount - 1];
+
+			// --- "Arrived Now" Logic ---
+			// Train is "Arrived Now" if its last arrival was *this* station
+			// AND it has *not yet departed* from it.
+			if (
+				lastArrivalRecord &&
+				lastArrivalRecord.stationId === stationId &&
+				arrivalsCount > departuresCount
+			) {
+				arrived.push(train);
+				return; // A train can't be Arrived and Arriving Soon
 			}
 
-			// Check if "Arriving Soon" (i.e., THIS station is the NEXT station)
+			// --- "Arriving Soon" Logic ---
 			const route = allRoutes.find((r) => r.id === train.routeId);
 			if (!route) return;
 
-			const stoppageMap = new Map(train.stoppages.map((s) => [s.stationId, s]));
-			const actualStoppagesOnRoute =
-				route.stations.filter((station) =>
-					stoppageMap.has(station.stationId)
-				) || [];
-
-			const firstLegStations =
-				train.direction === "up"
-					? [...actualStoppagesOnRoute]
-					: [...actualStoppagesOnRoute].reverse();
-
-			// Full journey including turnaround
-			const journey = [
-				...firstLegStations,
-				...firstLegStations.reverse().slice(1),
-			];
-
-			const thisStationJourneyIndex = journey.findIndex(
-				(s) => s.stationId === stationId
+			const journey = getFullJourney(
+				route.stations,
+				train.stoppages,
+				train.direction
 			);
+			if (journey.length === 0) return;
 
-			if (thisStationJourneyIndex > 0) {
-				// Find the previous station in the *full journey*
-				const prevStationInJourney = journey[thisStationJourneyIndex - 1];
-
-				// If the train's last completed station WAS the previous station,
-				// then it is currently en route to THIS station.
+			if (arrivalsCount === 0) {
+				// Case 1: PENDING DEPARTURE.
+				// If this is the first station in the journey, it's "Arriving Soon" (as in, "at station, pending").
+				const firstStationInJourney = journey[0];
 				if (
-					status.last_completed_station_id === prevStationInJourney.stationId
+					firstStationInJourney &&
+					firstStationInJourney.stationId === stationId
 				) {
 					soon.push(train);
 				}
-			} else if (thisStationJourneyIndex === 0) {
-				// Special case: This is the FIRST station.
-				// If no arrivals yet, it's "Arriving Soon" (pending departure)
-				if (status.arrivals.length === 0) {
+			} else if (arrivalsCount === departuresCount) {
+				// Case 2: EN ROUTE.
+				// The train has departed its last stop. Check if its *next*
+				// stop (at index `arrivalsCount`) is this station.
+				const nextStationInJourney = journey[arrivalsCount];
+				if (
+					nextStationInJourney &&
+					nextStationInJourney.stationId === stationId
+				) {
 					soon.push(train);
 				}
 			}
+			// If (arrivalsCount > departuresCount), train is AT a station (handled by "Arrived Now").
+			// If it's at a *different* station, it's neither "Arrived Now" nor "Arriving Soon"
+			// for *this* station, so we do nothing.
 		});
 
 		return { arrivedNow: arrived, arrivingSoon: soon };

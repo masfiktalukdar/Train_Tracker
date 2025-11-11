@@ -11,6 +11,7 @@ import {
 	UpdateStatusPayload,
 	DailyTrainStatus,
 	StationArrivalRecord,
+	StationDepartureRecord, // NEW
 } from "@/features/admin/api/statusApi";
 import {
 	ArrowRight,
@@ -20,7 +21,13 @@ import {
 	TrainFront,
 	X,
 	Loader2,
+	LogOut, // NEW: Using for Depart
+	Undo2, // NEW: Using for Undo
 } from "lucide-react";
+import {
+	format24HourTime,
+	formatTimeFromDate,
+} from "@/features/user/utils/formatTime"; // NEW IMPORT
 
 type TrainJourneyModalProps = {
 	train: ApiTrain;
@@ -126,55 +133,112 @@ export default function TrainJourneyModal({
 		date: today,
 		lap_completed: false,
 		arrivals: [],
+		departures: [], // NEW
 		last_completed_station_id: null,
 	};
 
 	const status = todaysStatus || defaultStatus;
 	const { lap_completed: lapCompleted } = status;
-	const lastCompletedIndex = status.arrivals.length - 1;
+	const lastCompletedArrivalIndex = status.arrivals.length - 1;
+	const arrivalsCount = status.arrivals.length; // NEW
+	const departuresCount = status.departures.length; // NEW
 
 	// --- Handlers ---
-	const handleStationClick = (
+	const handleArrive = (
 		station: Station & { journeyIndex: number; defaultTime: string }
 	) => {
+		if (
+			lapCompleted ||
+			statusUpdateMutation.isPending ||
+			station.journeyIndex !== arrivalsCount || // Can only arrive at the *next* station
+			arrivalsCount !== departuresCount // NEW: Must have departed previous station
+		) {
+			return; // Can only arrive at the *next* station
+		}
+
+		const newArrival: StationArrivalRecord = {
+			id: uuid(),
+			stationId: station.stationId,
+			stationName: station.stationName,
+			arrivedAt: new Date().toISOString(),
+		};
+
+		const newStatus: UpdateStatusPayload = {
+			...status,
+			arrivals: [...status.arrivals, newArrival],
+			last_completed_station_id: station.stationId,
+		};
+
+		// Optimistically update before firing mutation
+		queryClient.setQueryData(queryKey, newStatus);
+		statusUpdateMutation.mutate(newStatus);
+	};
+
+	const handleDepart = (
+		station: Station & { journeyIndex: number; defaultTime: string }
+	) => {
+		if (
+			lapCompleted ||
+			statusUpdateMutation.isPending ||
+			// Can only depart from the last *arrived* station
+			station.journeyIndex !== lastCompletedArrivalIndex ||
+			// Can only depart if we haven't already
+			station.journeyIndex !== departuresCount // Use departuresCount
+		) {
+			return;
+		}
+
+		const newDeparture: StationDepartureRecord = {
+			id: uuid(),
+			stationId: station.stationId,
+			stationName: station.stationName,
+			departedAt: new Date().toISOString(),
+		};
+
+		const newStatus: UpdateStatusPayload = {
+			...status,
+			departures: [...status.departures, newDeparture],
+			// last_completed_station_id doesn't change on departure
+		};
+
+		// Optimistically update before firing mutation
+		queryClient.setQueryData(queryKey, newStatus);
+		statusUpdateMutation.mutate(newStatus);
+	};
+
+	const handleUndo = () => {
 		if (lapCompleted || statusUpdateMutation.isPending) return;
 
-		const clickedIndex = station.journeyIndex;
 		let newStatus: UpdateStatusPayload;
+		const arrivalsCount = status.arrivals.length;
+		const departuresCount = status.departures.length;
 
-		if (clickedIndex <= lastCompletedIndex) {
-			// --- UNDO ---
-			const newLastStation =
-				clickedIndex > 0 ? fullJourney[clickedIndex - 1] : null;
-			const newLastStationId = newLastStation ? newLastStation.stationId : null;
-
-			const newArrivals = status.arrivals.slice(0, clickedIndex);
-
+		if (arrivalsCount > departuresCount) {
+			// Last action was an ARRIVAL. Undo it.
+			const newArrivals = status.arrivals.slice(0, -1);
+			const newLastStationId =
+				newArrivals.length > 0
+					? newArrivals[newArrivals.length - 1].stationId
+					: null;
 			newStatus = {
 				...status,
 				arrivals: newArrivals,
 				last_completed_station_id: newLastStationId,
-				lap_completed: false, // Can't be completed if we just undid
+				lap_completed: false,
 			};
-		} else if (clickedIndex === lastCompletedIndex + 1) {
-			// --- ADVANCE ---
-			const newArrival: StationArrivalRecord = {
-				id: uuid(),
-				stationId: station.stationId,
-				stationName: station.stationName,
-				arrivedAt: new Date().toISOString(),
-			};
+		} else if (arrivalsCount === departuresCount && arrivalsCount > 0) {
+			// Last action was a DEPARTURE. Undo it.
+			const newDepartures = status.departures.slice(0, -1);
 			newStatus = {
 				...status,
-				arrivals: [...status.arrivals, newArrival],
-				last_completed_station_id: station.stationId,
+				departures: newDepartures,
+				lap_completed: false,
 			};
 		} else {
-			// Clicked too far ahead, do nothing
+			// Nothing to undo
 			return;
 		}
 
-		// Optimistically update before firing mutation
 		queryClient.setQueryData(queryKey, newStatus);
 		statusUpdateMutation.mutate(newStatus);
 	};
@@ -182,7 +246,8 @@ export default function TrainJourneyModal({
 	const handleCompleteLap = () => {
 		if (lapCompleted || statusUpdateMutation.isPending) return;
 
-		if (lastCompletedIndex === fullJourney.length - 1) {
+		// Can only complete if we have arrived at the final station
+		if (lastCompletedArrivalIndex === fullJourney.length - 1) {
 			const newStatus: UpdateStatusPayload = {
 				...status,
 				lap_completed: true,
@@ -190,6 +255,7 @@ export default function TrainJourneyModal({
 			queryClient.setQueryData(queryKey, newStatus);
 			statusUpdateMutation.mutate(newStatus);
 		} else {
+			// Don't use alert()
 			console.warn("Please mark all stations as arrived first.");
 		}
 	};
@@ -206,16 +272,31 @@ export default function TrainJourneyModal({
 						<p className="text-sm text-gray-600">
 							{lapCompleted
 								? "This train's lap for today is complete."
-								: "Click the *next* stoppage to mark arrival, or a *completed* one to undo."}
+								: "Click station to Arrive, or Depart button to Depart."}
 						</p>
 					</div>
-					<button
-						type="button"
-						onClick={onClose}
-						className="p-1 rounded-full hover:bg-gray-200"
-					>
-						<X className="w-6 h-6 text-gray-600" />
-					</button>
+					<div className="flex items-center gap-2">
+						<button
+							type="button"
+							onClick={handleUndo}
+							title="Undo last action"
+							disabled={
+								lapCompleted ||
+								statusUpdateMutation.isPending ||
+								(status.arrivals.length === 0 && status.departures.length === 0)
+							}
+							className="p-2 rounded-full hover:bg-gray-200 text-gray-600 disabled:text-gray-300 disabled:cursor-not-allowed"
+						>
+							<Undo2 className="w-5 h-5" />
+						</button>
+						<button
+							type="button"
+							onClick={onClose}
+							className="p-1 rounded-full hover:bg-gray-200"
+						>
+							<X className="w-6 h-6 text-gray-600" />
+						</button>
+					</div>
 				</div>
 
 				{/* --- Journey Body --- */}
@@ -228,42 +309,70 @@ export default function TrainJourneyModal({
 					<div className="p-6 space-y-4 overflow-y-auto">
 						<div className="flex flex-wrap items-center gap-2">
 							{fullJourney.map((station, index) => {
-								const isCompleted = index <= lastCompletedIndex;
-								const isCurrent = index === lastCompletedIndex + 1;
-								const isTurnaround = index === firstLegLength - 1;
-								const isClickable = !lapCompleted && (isCompleted || isCurrent);
+								const hasArrived = index < arrivalsCount;
+								const hasDeparted = index < departuresCount;
+								const isNextToArrive = index === arrivalsCount;
+								const isWaitingToDepart = hasArrived && !hasDeparted;
 
-								const title = isClickable
-									? isCompleted
-										? `Click to undo (go back to ${
-												fullJourney[index - 1]?.stationName || "start"
-											})`
-										: "Click to mark as arrived"
-									: lapCompleted
-										? "Lap complete"
-										: "Cannot arrive here yet";
+								const isClickableToArrive =
+									!lapCompleted &&
+									isNextToArrive &&
+									arrivalsCount === departuresCount; // NEW CHECK
+
+								// --- FIX: DO NOT show depart button for the final station ---
+								const isFinalStation = index === fullJourney.length - 1;
+								const isClickableToDepart =
+									!lapCompleted && isWaitingToDepart && !isFinalStation;
+								// --- END FIX ---
+
+								let title = "Not yet arrived";
+								if (isClickableToArrive) title = "Click to mark as Arrived";
+								if (isWaitingToDepart && !isFinalStation)
+									title = "Waiting to depart. Click 'Depart' button.";
+								if (isWaitingToDepart && isFinalStation)
+									title = "Final station reached. Click 'Complete Lap' below.";
+								if (hasDeparted) title = "Arrived and Departed";
+								if (lapCompleted) title = "Lap complete";
 
 								return (
 									<React.Fragment key={`${station.stationId}-${index}`}>
 										{/* Station Block */}
 										<div
 											className={`flex items-center gap-3 p-3 rounded-lg border ${
-												isClickable ? "cursor-pointer" : "cursor-not-allowed"
+												isClickableToArrive
+													? "cursor-pointer"
+													: "cursor-default"
 											} ${
-												isCompleted ? "bg-gray-100 text-gray-500" : "bg-white"
+												hasArrived
+													? "bg-gray-100 text-gray-600"
+													: "bg-white text-gray-800"
 											} ${
-												isCurrent && !lapCompleted
+												isNextToArrive && !lapCompleted && isClickableToArrive
 													? "border-blue-500 ring-2 ring-blue-500"
 													: "border-gray-300"
-											}`}
-											onClick={() => handleStationClick(station)}
+											} ${
+												isWaitingToDepart && !lapCompleted
+													? "border-yellow-500"
+													: ""
+											}
+											${isWaitingToDepart && isFinalStation ? "border-green-500" : ""}
+											`}
+											onClick={() => handleArrive(station)}
 											title={title}
 										>
 											{/* Icon */}
 											<div>
-												{isCompleted ? (
+												{hasDeparted ? (
 													<CheckCircle className="w-5 h-5 text-green-500" />
-												) : isCurrent && !lapCompleted ? (
+												) : isWaitingToDepart ? (
+													<TrainFront
+														className={`w-5 h-5 ${
+															isFinalStation
+																? "text-green-600"
+																: "text-yellow-600"
+														}`}
+													/>
+												) : isNextToArrive && !lapCompleted ? (
 													<TrainFront className="w-5 h-5 text-blue-500" />
 												) : (
 													<div className="w-5 h-5 flex items-center justify-center">
@@ -271,18 +380,34 @@ export default function TrainJourneyModal({
 													</div>
 												)}
 											</div>
+											{/* Name & Time */}
 											<div className="flex-shrink min-w-0">
 												<span className="block font-bold truncate">
 													{station.stationName}
 												</span>
 												<span className="text-xs text-blue-600 font-mono">
-													({station.defaultTime})
+													({format24HourTime(station.defaultTime)})
 												</span>
 											</div>
+											{/* Depart Button */}
+											{isClickableToDepart && (
+												<button
+													title={`Click to mark as Departed from ${station.stationName}`}
+													className="ml-2 px-2 py-1 bg-yellow-500 text-white rounded-md text-xs font-bold hover:bg-yellow-600 flex items-center gap-1"
+													onClick={(e) => {
+														e.stopPropagation(); // Don't trigger arrive click
+														handleDepart(station);
+													}}
+													disabled={statusUpdateMutation.isPending}
+												>
+													<LogOut className="w-3 h-3" />
+													Depart
+												</button>
+											)}
 										</div>
 
 										{/* Arrow or Turnaround Block */}
-										{isTurnaround ? (
+										{index === firstLegLength - 1 ? (
 											<div className="flex items-center p-3 text-red-600 font-semibold">
 												<CornerDownRight className="w-5 h-5 mr-2" />
 												TURNAROUND
@@ -298,18 +423,19 @@ export default function TrainJourneyModal({
 						</div>
 
 						{/* --- Lap Completion Button --- */}
-						{lastCompletedIndex === fullJourney.length - 1 && !lapCompleted && (
-							<div className="pt-4 text-center">
-								<button
-									className="px-6 py-3 bg-green-600 text-white font-bold rounded-lg shadow-lg hover:bg-green-700 transition-colors flex items-center gap-2 mx-auto disabled:opacity-50"
-									onClick={handleCompleteLap}
-									disabled={statusUpdateMutation.isPending}
-								>
-									<Flag className="w-5 h-5" />
-									Mark Daily Lap as Complete
-								</button>
-							</div>
-						)}
+						{lastCompletedArrivalIndex === fullJourney.length - 1 &&
+							!lapCompleted && (
+								<div className="pt-4 text-center">
+									<button
+										className="px-6 py-3 bg-green-600 text-white font-bold rounded-lg shadow-lg hover:bg-green-700 transition-colors flex items-center gap-2 mx-auto disabled:opacity-50"
+										onClick={handleCompleteLap}
+										disabled={statusUpdateMutation.isPending}
+									>
+										<Flag className="w-5 h-5" />
+										Mark Daily Lap as Complete
+									</button>
+								</div>
+							)}
 						{lapCompleted && (
 							<div className="pt-4 text-center">
 								<p className="px-6 py-3 bg-green-100 text-green-800 font-semibold rounded-lg flex items-center gap-2 justify-center">
@@ -319,15 +445,15 @@ export default function TrainJourneyModal({
 							</div>
 						)}
 
-						{/* --- Arrival Log --- */}
-						{status.arrivals.length > 0 && (
-							<div className="pt-4">
-								<h4 className="text-sm font-semibold text-gray-700 mb-2">
-									Today's Arrival Log
-								</h4>
-								<div className="max-h-32 overflow-y-auto bg-gray-50 border rounded-md p-2 space-y-1">
-									{status.arrivals
-										.map((arrival) => (
+						{/* --- Arrival/Departure Log --- */}
+						{(status.arrivals.length > 0 || status.departures.length > 0) && (
+							<div className="pt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+								<div>
+									<h4 className="text-sm font-semibold text-gray-700 mb-2">
+										Today's Arrival Log
+									</h4>
+									<div className="max-h-32 overflow-y-auto bg-gray-50 border rounded-md p-2 space-y-1">
+										{[...status.arrivals].reverse().map((arrival) => (
 											<p
 												key={arrival.id}
 												className="text-xs text-gray-600 font-mono"
@@ -336,10 +462,29 @@ export default function TrainJourneyModal({
 													{arrival.stationName}
 												</span>
 												{": "}
-												{new Date(arrival.arrivedAt).toLocaleTimeString()}
+												{formatTimeFromDate(arrival.arrivedAt)}
 											</p>
-										))
-										.reverse()}
+										))}
+									</div>
+								</div>
+								<div>
+									<h4 className="text-sm font-semibold text-gray-700 mb-2">
+										Today's Departure Log
+									</h4>
+									<div className="max-h-32 overflow-y-auto bg-gray-50 border rounded-md p-2 space-y-1">
+										{[...status.departures].reverse().map((departure) => (
+											<p
+												key={departure.id}
+												className="text-xs text-gray-600 font-mono"
+											>
+												<span className="font-bold text-black">
+													{departure.stationName}
+												</span>
+												{": "}
+												{formatTimeFromDate(departure.departedAt)}
+											</p>
+										))}
+									</div>
 								</div>
 							</div>
 						)}

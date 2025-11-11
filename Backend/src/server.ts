@@ -15,7 +15,7 @@ const app = express();
 
 // --- Middleware ---
 const allowedOrigins = [
-    "https://train-tracker-bd.vercel.app", 
+    "https://trainnojor.vercel.app",
     "http://localhost:5173"
 ];
 

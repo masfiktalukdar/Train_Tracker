@@ -24,7 +24,6 @@ export default function TrainListPage() {
 	} = useQuery<ApiRoute[]>({
 		queryKey: ["routes"],
 		queryFn: getRoutes,
-		// onSuccess has been removed from here
 	});
 
 	// 2. Fetch all trains
@@ -39,12 +38,11 @@ export default function TrainListPage() {
 		queryFn: getTrains,
 	});
 
-	// FIX: Handle the side effect of setting the default route
 	useEffect(() => {
 		if (!selectedRouteId && routes.length > 0) {
 			setSelectedRouteId(routes[0].id.toString());
 		}
-	}, [routes, selectedRouteId]); // This effect runs when 'routes' data changes
+	}, [routes, selectedRouteId]); 
 
 	// 3. Filter trains based on selected route
 	const filteredTrains = allTrains.filter(
@@ -58,7 +56,6 @@ export default function TrainListPage() {
 	>({
 		queryKey: ["trainStatuses", selectedRouteId],
 		queryFn: async () => {
-			// Re-filter trains inside the queryFn to ensure it uses the latest data
 			const currentFilteredTrains = allTrains.filter(
 				(train) => train.routeId.toString() === selectedRouteId
 			);
@@ -79,7 +76,6 @@ export default function TrainListPage() {
 			}
 			return statuses;
 		},
-		// Only run this query if routes/trains are loaded and there are trains to check
 		enabled:
 			!isLoadingRoutes &&
 			!isLoadingTrains &&
@@ -92,11 +88,9 @@ export default function TrainListPage() {
 	const error = errorRoutes || errorTrains;
 
 	const renderContent = () => {
-		// Show main loader while routes or trains are loading
 		if (isLoading) {
 			return <LoadingSpinner text="Loading train data..." fullPage />;
 		}
-		// Show error if routes or trains failed
 		if (isError) {
 			return (
 				<ErrorDisplay
@@ -132,7 +126,7 @@ export default function TrainListPage() {
 				<div className="text-center p-10 bg-white rounded-xl shadow border">
 					<h3 className="text-xl font-medium text-gray-700">No trains found</h3>
 					<p className="text-gray-500 mt-2">
-						There are no trains assigned to this route yet.
+						There are no trains available on this route yet...
 					</p>
 				</div>
 			);

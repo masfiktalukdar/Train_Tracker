@@ -70,7 +70,6 @@ export default function TrainCard({
 
 				{/* Right Side: Actions */}
 				<div className="flex items-center gap-2 flex-shrink-0">
-					{/* Stoppage count - hidden on very small screens if needed, or kept compact */}
 					<p className="hidden sm:block text-xs text-gray-500 text-right mr-2">
 						{train.stoppages.length} stops
 					</p>

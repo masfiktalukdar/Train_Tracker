@@ -9,12 +9,11 @@ import type {
 	UpdateTrainData,
 } from "@/features/admin/api/trainsApi";
 import { createTrain, updateTrain } from "@/features/admin/api/trainsApi";
-// No longer need getRoutes, just the type
 import type { ApiRoute } from "@/features/admin/api/routesApi";
 
 type TrainFormDialogProps = {
 	trainToEdit: ApiTrain | null;
-	route: ApiRoute | undefined; // The route object is passed in
+	route: ApiRoute | undefined; 
 	onClose: () => void;
 };
 
@@ -25,7 +24,6 @@ export default function TrainFormDialog({
 }: TrainFormDialogProps) {
 	const queryClient = useQueryClient();
 
-	// The route object is now passed as a prop
 	const selectedRoute = route;
 	const routeStations = selectedRoute?.stations || [];
 

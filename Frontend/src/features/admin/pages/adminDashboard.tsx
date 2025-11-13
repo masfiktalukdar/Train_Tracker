@@ -19,7 +19,6 @@ import {
 	XAxis,
 	YAxis,
 } from "recharts";
-// import type { ChartDataEntry } from "@app-types/AdminDashboardTypes";
 import { getDashboardStats } from "@/features/admin/api/dashboardApi";
 import Footer from "@/components/footer";
 
@@ -163,7 +162,7 @@ export default function AdminDashboard() {
 							/>
 							<Line
 								dataKey="registrationCount"
-								name="Registrations" // Add name for tooltip
+								name="Registrations" 
 								stroke="#064f86"
 								strokeWidth={1.5}
 								dot={false}

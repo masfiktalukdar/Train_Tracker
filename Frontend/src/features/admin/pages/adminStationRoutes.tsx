@@ -35,12 +35,10 @@ export default function AdminStationRoutes() {
 				...oldData,
 				newRoute,
 			]);
-			// Set this new route as active in our UI store
 			setActiveRoute(newRoute.id.toString());
 		},
 	});
 
-	// Effect to set an active route if one isn't set
 	useEffect(() => {
 		if (!activeRouteId && routes.length > 0) {
 			setActiveRoute(routes[0].id.toString());
@@ -70,7 +68,6 @@ export default function AdminStationRoutes() {
 			{routes.length === 0 ? (
 				<RoundedBlinkingButton onClick={() => createRouteMutation.mutate()} />
 			) : (
-				/* Header add station and search section */
 				<div className="mx-6">
 					<div className="flex gap-4 justify-end mt-5 mb-6">
 						<ButtonPrimary onClick={() => createRouteMutation.mutate()}>
@@ -98,7 +95,6 @@ export default function AdminStationRoutes() {
 						</select>
 					</div>
 
-					{/* Pass the activeRoute object to the whiteboard */}
 					{activeRoute ? (
 						<AdminWhiteBoardBuilder activeRoute={activeRoute} />
 					) : (

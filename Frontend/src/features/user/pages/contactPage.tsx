@@ -19,7 +19,6 @@ import {
 export default function ContactPage() {
 	const user = useAuthStore((state) => state.user);
 	const [name, setName] = useState("");
-	// Pre-fill email if user is logged in
 	const [email, setEmail] = useState(user?.email || "");
 	const [reason, setReason] = useState<FeedbackReason>("general");
 	const [message, setMessage] = useState("");
@@ -29,12 +28,10 @@ export default function ContactPage() {
 		mutationFn: submitFeedback,
 		onSuccess: () => {
 			setIsSuccess(true);
-			// Reset form
 			setName("");
 			if (!user?.email) setEmail("");
 			setReason("general");
 			setMessage("");
-			// Reset success message after 5 seconds
 			setTimeout(() => setIsSuccess(false), 5000);
 		},
 	});
@@ -127,7 +124,6 @@ export default function ContactPage() {
 										autoComplete="email"
 										required
 										value={email}
-										// Disable if it's auto-filled from auth to ensure consistency, or let them edit? Let's let them edit.
 										onChange={(e) => setEmail(e.target.value)}
 										className="appearance-none block w-full px-3 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm transition-colors"
 										placeholder="you@example.com"

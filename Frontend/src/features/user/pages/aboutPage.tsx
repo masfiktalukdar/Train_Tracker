@@ -38,10 +38,10 @@ export default function AboutPage() {
 					<img
 						src={BRLogo}
 						alt="Train Tracker Logo"
-						className="w-20 h-20 mx-auto mb-4"
+						className="w-24 h-24 mx-auto mb-4"
 					/>
 					<h1 className="text-4xl md:text-5xl font-extrabold mb-3">
-						About TrainTracker
+						About Train Nojor
 					</h1>
 					<p className="text-xl text-primary-200">
 						Your reliable source for digital rail status and predictive journey

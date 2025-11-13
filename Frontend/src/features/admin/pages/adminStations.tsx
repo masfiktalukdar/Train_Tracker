@@ -13,9 +13,6 @@ import {
 	useAdminStationModalToogle,
 	useAdminStationModalOperation,
 } from "@/store/adminStationStore";
-// We NO LONGER import useAdminStationData
-
-// Import our new API functions and types
 import {
 	getStations,
 	deleteStation,
@@ -25,13 +22,10 @@ import {
 export default function AdminStations() {
 	const queryClient = useQueryClient();
 
-	// --- Zustand UI State (This is correct) ---
 	const { isModalOpen, openModal } = useAdminStationModalToogle();
 	const { operation, setOperationAdd, setOperationUpdate } =
 		useAdminStationModalOperation();
 
-	// --- Local UI State ---
-	// We change this to store the *full station object* for editing
 	const [selectedStation, setSelectedStation] = useState<ApiStation | null>(
 		null
 	);
@@ -42,8 +36,8 @@ export default function AdminStations() {
 		isLoading,
 		isError,
 	} = useQuery<ApiStation[]>({
-		queryKey: ["stations"], // This is the cache key
-		queryFn: getStations, // This is the fetcher function
+		queryKey: ["stations"], 
+		queryFn: getStations, 
 	});
 
 	// Use the search hook with the data from useQuery
@@ -56,11 +50,9 @@ export default function AdminStations() {
 	const deleteStationMutation = useMutation({
 		mutationFn: deleteStation,
 		onSuccess: () => {
-			// When delete succeeds, refetch the 'stations' query
 			queryClient.invalidateQueries({ queryKey: ["stations"] });
 		},
 		onError: (err) => {
-			// In a real app, you'd show a toast notification
 			console.error("Failed to delete station:", err.message);
 		},
 	});
@@ -70,18 +62,16 @@ export default function AdminStations() {
 	const stationEditModalOpen = (station: ApiStation) => {
 		openModal();
 		setOperationUpdate();
-		setSelectedStation(station); // Set the station to be edited
+		setSelectedStation(station);
 	};
 
 	const stationAddModalOpener = () => {
 		openModal();
 		setOperationAdd();
-		setSelectedStation(null); // Ensure no station is selected
+		setSelectedStation(null);
 	};
 
 	const handleDeleteStation = (id: number) => {
-		// We can use the browser's confirm, but a custom modal is better
-		// For now, this is fine.
 		if (confirm("Are you sure you want to delete this station?")) {
 			deleteStationMutation.mutate(id);
 		}
@@ -132,8 +122,8 @@ export default function AdminStations() {
 				) : (
 					filtered.map((station, index) => (
 						<StationCart
-							key={station.id} // Use database ID for the key
-							index={index} // Use list index for the menu toggle
+							key={station.id} 
+							index={index} 
 							stationName={station.stationName}
 							stationLocation={station.stationLocation}
 							stationLocationURL={station.stationLocationURL}

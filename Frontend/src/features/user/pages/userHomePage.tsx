@@ -1,50 +1,10 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Train, Building } from "lucide-react";
 import backgroundImage from "../../../assets/Train_Illustration.jpg";
 
 export default function UserHomePage() {
-	const [showNotice, setShowNotice] = useState(true);
-	const [greeting, setGreeting] = useState("");
-
-	// Handle greeting based on time
-	useEffect(() => {
-		const hour = new Date().getHours();
-		if (hour < 12) setGreeting("Let’s start a fresh journey.");
-		else if (hour < 18) setGreeting("Let’s continue our journey.");
-		else setGreeting("Let’s end the day on track.");
-	}, []);
-
-	// Load or save notice preference
-	useEffect(() => {
-		const hideNotice = localStorage.getItem("hideNotice");
-		if (hideNotice === "true") setShowNotice(false);
-	}, []);
-
-	const handleHideNotice = () => {
-		setShowNotice(false);
-		localStorage.setItem("hideNotice", "true");
-	};
-
 	return (
 		<div className="relative flex flex-col min-h-screen bg-gray-50">
-			{/* --- Top Notice --- */}
-			{showNotice && (
-				<div className="bg-yellow-100 text-yellow-900 px-4 py-2 text-center text-sm md:text-base flex items-center justify-center gap-3">
-					<span>
-						🚆 TrainTracker uses only arrival times, so it may miscalculate a
-						train’s crossing time.
-					</span>
-					<button
-						onClick={handleHideNotice}
-						className="text-yellow-700 underline hover:text-yellow-900"
-					>
-						Never show again
-					</button>
-				</div>
-			)}
-
-
 			{/* --- Hero Section --- */}
 			<div
 				className="relative h-72 md:h-96 bg-cover bg-center shadow-lg"
@@ -54,10 +14,11 @@ export default function UserHomePage() {
 			>
 				<div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white px-4">
 					<h1 className="text-4xl md:text-5xl font-bold drop-shadow-lg mb-3">
-						{greeting}
+						Have a safe and easy trip
 					</h1>
 					<p className="text-lg md:text-xl text-gray-200">
-						Plan. Track. Arrive on time.
+						Track your train’s live location, time, and route with real-time
+						updates!
 					</p>
 				</div>
 			</div>
@@ -77,7 +38,7 @@ export default function UserHomePage() {
 							<h2 className="text-2xl font-semibold text-primary-900">
 								Trains
 							</h2>
-							<p className="text-gray-600 mt-2">Find trains by route</p>
+							<p className="text-gray-600 mt-2">Find Your Train!</p>
 						</Link>
 
 						{/* Stations Card */}
@@ -91,7 +52,7 @@ export default function UserHomePage() {
 							<h2 className="text-2xl font-semibold text-primary-900">
 								Stations
 							</h2>
-							<p className="text-gray-600 mt-2">See arrivals by station</p>
+							<p className="text-gray-600 mt-2">See trains at stations</p>
 						</Link>
 					</div>
 

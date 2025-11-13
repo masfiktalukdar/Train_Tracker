@@ -38,21 +38,14 @@ export default function AdminTrainPage() {
 		queryFn: getTrains,
 	});
 
-	// --- FIX: This logic is now robust ---
-	// It validates the selected ID against the route list
 	useEffect(() => {
 		if (isLoadingRoutes || routes.length === 0) {
-			// Don't do anything until routes are loaded and not empty
 			return;
 		}
 
-		// Check if the current selectedRouteId is present in the new list of routes
 		const selectedIdIsValid =
 			selectedRouteId &&
 			routes.some((r) => r.id.toString() === selectedRouteId);
-
-		// If no ID is selected, OR if the selected ID is no longer valid (e.g., was deleted)
-		// default to the first route in the list.
 		if (!selectedIdIsValid) {
 			setSelectedRouteId(routes[0].id.toString());
 		}
@@ -87,9 +80,6 @@ export default function AdminTrainPage() {
 	}, [trains, selectedRouteId, searchTerm]);
 
 	// --- Handlers ---
-
-	// This logic is now correct because the useEffect guarantees
-	// selectedRouteId will be valid (or will be set to a valid default).
 	const handleOpenAdd = () => {
 		if (routes.length === 0) {
 			console.warn("Please create a route first.");
@@ -99,24 +89,19 @@ export default function AdminTrainPage() {
 		// 1. Determine the route ID to use
 		let idToFind: string;
 		if (selectedRouteId) {
-			// Use the ID from the dropdown state
 			idToFind = selectedRouteId;
 		} else {
-			// This is a fallback, but the useEffect should prevent this
 			idToFind = routes[0].id.toString();
 			setSelectedRouteId(idToFind); // Sync the state
 		}
 
-		// 2. Find the route in the map using the string ID
 		const routeToOpen = routesMap.get(idToFind);
 
-		// 3. Open modal or log error
 		if (routeToOpen) {
 			setRouteForModal(routeToOpen);
 			setSelectedTrain(null);
 			setIsFormOpen(true);
 		} else {
-			// This error should no longer happen
 			console.error(
 				"Could not find route to open modal for. Looked for ID:",
 				idToFind
@@ -129,7 +114,7 @@ export default function AdminTrainPage() {
 		const route = routesMap.get(routeIdString);
 		if (route) {
 			setRouteForModal(route);
-			setSelectedRouteId(routeIdString); // Set dropdown to match
+			setSelectedRouteId(routeIdString); 
 			setSelectedTrain(train);
 			setIsFormOpen(true);
 		} else {
@@ -179,7 +164,7 @@ export default function AdminTrainPage() {
 					</div>
 					<select
 						className="w-full p-2 border rounded-[4px] shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-						value={selectedRouteId || ""} // Handle null state
+						value={selectedRouteId || ""} 
 						onChange={(e) => setSelectedRouteId(e.target.value)}
 						disabled={routes.length === 0}
 					>

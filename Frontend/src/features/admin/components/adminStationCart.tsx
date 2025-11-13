@@ -85,8 +85,8 @@ export default function StationCart({
 				<div className="relative flex-shrink-0 self-start sm:self-center mt-1 sm:mt-0">
 					<button
 						onClick={(e) => {
-							e.stopPropagation(); // prevent root click
-							toggleMenuIndex(index); // open/close via store
+							e.stopPropagation(); 
+							toggleMenuIndex(index); 
 						}}
 						className="p-1.5 sm:p-2 rounded-full hover:bg-gray-100 transition-colors"
 						aria-expanded={isOpen}
@@ -103,7 +103,7 @@ export default function StationCart({
 							<button
 								onClick={() => {
 									if (onEdit) onEdit();
-									toggleMenuIndex(index); // Close menu after action
+									toggleMenuIndex(index); 
 								}}
 								className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
 							>
@@ -112,7 +112,7 @@ export default function StationCart({
 							<button
 								onClick={() => {
 									if (onDelete) onDelete();
-									toggleMenuIndex(index); // Close menu after action
+									toggleMenuIndex(index); 
 								}}
 								className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50 transition-colors"
 							>

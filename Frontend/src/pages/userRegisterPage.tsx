@@ -3,7 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { register, type AuthCredentials } from "@/features/auth/api/authApi";
 import BRLogo from "@assets/bangaldesh-railway-logo.png";
-import { isAxiosError } from "axios"; // Import isAxiosError
+import { isAxiosError } from "axios"; 
 
 export default function UserRegisterPage() {
 	const [email, setEmail] = useState("");
@@ -14,7 +14,6 @@ export default function UserRegisterPage() {
 	const mutation = useMutation({
 		mutationFn: (credentials: AuthCredentials) => register(credentials),
 		onError: (err) => {
-			// Extract specific error message
 			if (isAxiosError(err) && err.response?.data?.error) {
 				setError(err.response.data.error);
 			} else {

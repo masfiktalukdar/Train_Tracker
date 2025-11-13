@@ -6,7 +6,6 @@ import onboardingImage1 from "@assets/onboarding_img_1.jpg";
 import onboardingImage2 from "@assets/onboarding_img_2.jpg";
 import onboardingImage3 from "@assets/onboarding_img_3.jpg"
 
-// You can replace these with better images
 const slides = [
 	{
 		image: onboardingImage1,
@@ -33,7 +32,6 @@ export default function OnboardingPage() {
 		if (currentSlide < slides.length - 1) {
 			setCurrentSlide(currentSlide + 1);
 		} else {
-			// Last slide, complete onboarding
 			setHasOnboarded(true);
 		}
 	};

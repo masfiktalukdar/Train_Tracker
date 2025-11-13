@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { login, type AuthCredentials } from "@/features/auth/api/authApi";
 import { useAuthStore } from "@/store/useAuthStore";
 import AdminAvatar from "@assets/admin-avatar.png";
-import { isAxiosError } from "axios"; // Import isAxiosError
+import { isAxiosError } from "axios";
 
 export default function AdminLoginPage() {
 	const [email, setEmail] = useState("");
@@ -24,7 +24,6 @@ export default function AdminLoginPage() {
 			}
 		},
 		onError: (err) => {
-			// Extract specific error message from backend response
 			if (isAxiosError(err) && err.response?.data?.error) {
 				setError(err.response.data.error);
 			} else {

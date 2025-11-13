@@ -5,8 +5,8 @@ import AdminDataAddDropdown from "./adminDataAddDropdown";
 import { Move, RotateCw, Trash2, ZoomIn, ZoomOut } from "lucide-react";
 import type { ApiRoute } from "@/features/admin/api/routesApi";
 import { updateRoute, deleteRoute } from "@/features/admin/api/routesApi";
-import { getStations, ApiStation } from "@/features/admin/api/stationsApi"; // We'll use the station API
-import type { Station } from "@/types/dataModels"; // Keep using this simple type for logic
+import { getStations, ApiStation } from "@/features/admin/api/stationsApi"; 
+import type { Station } from "@/types/dataModels"; 
 
 // Helper function to auto-name routes
 function formatRouteName(stations: Station[]) {
@@ -36,7 +36,6 @@ export default function AdminWhiteBoardBuilder({
 	const updateRouteMutation = useMutation({
 		mutationFn: updateRoute,
 		onSuccess: (updatedRoute) => {
-			// Optimistically update the cache
 			queryClient.setQueryData(["routes"], (oldData: ApiRoute[] = []) =>
 				oldData.map((route) =>
 					route.id === updatedRoute.id ? updatedRoute : route
@@ -45,8 +44,6 @@ export default function AdminWhiteBoardBuilder({
 		},
 		onError: (err) => {
 			console.error("Failed to update route:", err);
-			// You could show an error toast here
-			// And invalidate to refetch and revert optimistic update
 			queryClient.invalidateQueries({ queryKey: ["routes"] });
 		},
 	});
@@ -79,8 +76,6 @@ export default function AdminWhiteBoardBuilder({
 	});
 	const svgRef = useRef<SVGSVGElement | null>(null);
 
-	// --- Refactored Logic ---
-
 	// Find stations that are NOT already in the active route
 	const availableStations = useMemo(() => {
 		const activeStationIds = new Set(
@@ -96,7 +91,7 @@ export default function AdminWhiteBoardBuilder({
 
 		updateRouteMutation.mutate({
 			id: activeRoute.id,
-			name: formatRouteName(newStations), // Auto-update the name
+			name: formatRouteName(newStations), 
 			stations: newStations,
 		});
 		setShowAddModal({ isOpen: false, insertAfterIndex: -1 });
@@ -110,7 +105,7 @@ export default function AdminWhiteBoardBuilder({
 
 		updateRouteMutation.mutate({
 			id: activeRoute.id,
-			name: formatRouteName(newStations), // Auto-update the name
+			name: formatRouteName(newStations),
 			stations: newStations,
 		});
 	};
@@ -127,7 +122,6 @@ export default function AdminWhiteBoardBuilder({
 	// --- (Panning and Zooming handlers are unchanged) ---
 	// ... onMouseDown, onMouseMove, onMouseUp, zoom, resetView ...
 	type MouseDivEvent = React.MouseEvent<HTMLDivElement>;
-	// ... (pasting your existing handlers here for completeness) ...
 	const getSvgPoint = (clientX: number, clientY: number) => {
 		if (!svgRef.current) return { x: 0, y: 0 };
 		const pt = svgRef.current.createSVGPoint();
@@ -168,7 +162,7 @@ export default function AdminWhiteBoardBuilder({
 	const onTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
 		if (e.touches.length !== 1) return;
 		const touch = e.touches[0];
-		e.preventDefault(); // Prevent default touch behavior
+		e.preventDefault(); 
 		setIsPanning(true);
 		const startPoint = getSvgPoint(touch.clientX, touch.clientY);
 		panStartRef.current = {
@@ -182,7 +176,7 @@ export default function AdminWhiteBoardBuilder({
 	const onTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
 		if (!isPanning || e.touches.length !== 1) return;
 		const touch = e.touches[0];
-		e.preventDefault(); // Prevent page scrolling
+		e.preventDefault(); 
 		const { startX, startY, viewportX, viewportY } = panStartRef.current;
 		const newPoint = getSvgPoint(touch.clientX, touch.clientY);
 		const deltaX = newPoint.x - startX;
@@ -287,7 +281,6 @@ export default function AdminWhiteBoardBuilder({
 					{/* --- (Render Stations and Tracks - Unchanged) --- */}
 					{activeRoute.stations.map((station, index) => {
 						const stationX = index * (stationWidth + horizontalSpacing);
-						// ... (trackPath logic is the same) ...
 						let trackPath = null;
 						if (index > 0) {
 							const prevStationX =
@@ -325,7 +318,6 @@ export default function AdminWhiteBoardBuilder({
 							);
 						}
 
-						// ... (addBetweenButton logic is the same) ...
 						const btnX = stationX + stationWidth + horizontalSpacing / 2;
 						const btnY = stationNodeY + stationHeight / 2;
 						const addBetweenButton = (
@@ -366,7 +358,6 @@ export default function AdminWhiteBoardBuilder({
 							</g>
 						);
 
-						// ... (Station Node logic is the same, just uses handleRemoveStation) ...
 						return (
 							<g key={station.stationId}>
 								{trackPath}

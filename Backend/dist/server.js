@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 3000;
 const app = express();
 // --- Middleware ---
 const allowedOrigins = [
-    "https://train-tracker-bd.vercel.app",
+    "https://trainnojor.vercel.app",
     "http://localhost:5173"
 ];
 app.use(cors({

@@ -1,9 +1,7 @@
 import apiClient from "@/lib/apiClient";
 import type { TrainStoppage } from "@/types/dataModels";
 
-// --- MODIFIED ---
-// This is the type returned by the backend (snake_case)
-// Note: stoppages can be a string
+
 type DbTrain = {
   id: number;
   created_at: string;
@@ -11,10 +9,9 @@ type DbTrain = {
   code: string;
   direction: "up" | "down";
   route_id: number;
-  stoppages: string | TrainStoppage[]; // <-- MODIFIED
+  stoppages: string | TrainStoppage[]; 
 };
 
-// This is the type the frontend will use (all camelCase)
 export type ApiTrain = {
   id: number;
   created_at: string;
@@ -25,8 +22,6 @@ export type ApiTrain = {
   stoppages: TrainStoppage[];
 };
 
-// --- MODIFIED ---
-// Helper function to map DB response to frontend type AND parse stoppages
 const mapDbTrainToApiTrain = (dbTrain: DbTrain): ApiTrain => {
   let stoppages: TrainStoppage[] = [];
   if (dbTrain.stoppages && typeof dbTrain.stoppages === 'string') {
@@ -46,11 +41,10 @@ const mapDbTrainToApiTrain = (dbTrain: DbTrain): ApiTrain => {
     code: dbTrain.code,
     direction: dbTrain.direction,
     routeId: dbTrain.route_id,
-    stoppages: stoppages, // <-- Use the parsed array
+    stoppages: stoppages, 
   };
 };
 
-// For creating a new train (this type is correct, backend expects route_id)
 export type NewTrainData = {
   name: string;
   code: string;
@@ -59,10 +53,8 @@ export type NewTrainData = {
   stoppages: TrainStoppage[];
 };
 
-// For updating a train (this type is correct)
 export type UpdateTrainData = Partial<NewTrainData>;
 
-// Type-safe payload for the backend API (snake_case, all optional)
 type TrainUpdatePayload = {
   name?: string;
   code?: string;
@@ -71,17 +63,13 @@ type TrainUpdatePayload = {
   stoppages?: TrainStoppage[];
 };
 
-/**
- * Fetches all trains.
- */
+
 export const getTrains = async (): Promise<ApiTrain[]> => {
   const { data } = await apiClient.get<DbTrain[]>("/public/trains");
   return data.map(mapDbTrainToApiTrain);
 };
 
-/**
- * Creates a new train.
- */
+
 export const createTrain = async (
   trainData: NewTrainData
 ): Promise<ApiTrain> => {
@@ -93,9 +81,7 @@ export const createTrain = async (
   return mapDbTrainToApiTrain(data);
 };
 
-/**
- * Updates an existing train.
- */
+
 export const updateTrain = async ({
   id,
   updates,
@@ -103,7 +89,6 @@ export const updateTrain = async ({
   id: number;
   updates: UpdateTrainData;
 }): Promise<ApiTrain> => {
-  // This mapping logic is correct
   const payload: TrainUpdatePayload = {};
   if (updates.name !== undefined) payload.name = updates.name;
   if (updates.code !== undefined) payload.code = updates.code;
@@ -115,9 +100,7 @@ export const updateTrain = async ({
   return mapDbTrainToApiTrain(data);
 };
 
-/**
- * Deletes a train by its ID.
- */
+
 export const deleteTrain = async (id: number): Promise<void> => {
   await apiClient.delete(`/admin/trains/${id}`);
 };

@@ -3,14 +3,6 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { useMemo, useState } from "react";
 import { Menu, X, LogOut, Home, Train, Building } from "lucide-react";
 
-/**
- * UserLayout.tsx
- * - Left: Hamburger + "Train Tracker"
- * - Center: empty
- * - Right: Logout button (functional)
- * - Slide-in nav drawer (CSS + React)
- */
-
 interface HeaderConfig {
 	title: string;
 	showBack: boolean;

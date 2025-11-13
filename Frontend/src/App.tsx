@@ -24,7 +24,7 @@ import StationListPage from "@features/user/pages/stationListPage";
 import TrainStatusPage from "@features/user/pages/trainStatusPage";
 import StationStatusPage from "@features/user/pages/stationStatusPage";
 import AboutPage from "./features/user/pages/aboutPage";
-import ContactPage from "@features/user/pages/contactPage"; // NEW
+import ContactPage from "@features/user/pages/contactPage";
 import { useInterfaceStore } from "@store/useInterfaceStore";
 
 /**
@@ -35,7 +35,6 @@ function OnboardingGate() {
 	if (!hasOnboarded) {
 		return <OnboardingPage />;
 	}
-	// User has onboarded, show them the main app layout
 	return <UserLayout />;
 }
 

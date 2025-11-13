@@ -17,7 +17,6 @@ import {
 	Info,
 	X,
 	MapPin,
-	// Loader2, // No longer used by AtStationStatus
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import {
@@ -27,15 +26,6 @@ import {
 import { getFullJourney } from "@/features/user/utils/predictionLogic";
 import { Station } from "@/types/dataModels";
 
-// --- CONSTANTS ---
-// const FIVE_MINUTES_MS = 1000 * 60 * 5; // No longer needed here
-
-// --- REMOVED: AtTurnaroundStatus ---
-// This is no longer a special state. It's handled by AtStationStatus.
-
-// --- UPDATED: AtStationStatus ---
-// This component now handles all "at station" states, including turnarounds.
-// It also shows the actual arrival time.
 function AtStationStatus({
 	stationName,
 	arrivedAt,
@@ -120,20 +110,16 @@ function PendingDepartureStatus({
 }
 
 export default function TrainStatusPage() {
-	// --- REVERTED: Keep trainId as string (for UUID support) ---
 	const { trainId } = useParams<{ trainId: string }>();
 
 	const [showSchedule, setShowSchedule] = useState(false);
 
-	// 1. Fetch this specific train
 	const { data: train, isLoading: isLoadingTrain } = useQuery<
 		ApiTrain | undefined
 	>({
 		queryKey: ["trains", trainId],
 		queryFn: async () => {
 			const trains = await getTrains();
-			// Using loose equality (==) in case of mixed string/number types from API,
-			// ensuring we match UUID strings if that's what the API returns now.
 			return trains.find((t) => String(t.id) == trainId);
 		},
 		enabled: !!trainId,
@@ -160,7 +146,7 @@ export default function TrainStatusPage() {
 			// @ts-expect-error - ignoring potential string/number type mismatch for trainId
 			getDailyStatus(trainId, new Date().toISOString().split("T")[0]),
 		enabled: !!trainId,
-		refetchInterval: 10000, // Refetch every 10 seconds
+		refetchInterval: 10000, 
 		refetchOnWindowFocus: true,
 	});
 
@@ -176,7 +162,6 @@ export default function TrainStatusPage() {
 		predictions,
 		currentTravelInfo,
 		atStationInfo,
-		// atTurnaroundInfo, // Removed
 		isJourneyComplete,
 		isAtFinalStation,
 		warning,
@@ -239,7 +224,6 @@ export default function TrainStatusPage() {
 		);
 	}
 
-	// --- MODIFIED: Removed isNaN check ---
 	if (!train || !route || !trainId) {
 		return (
 			<ErrorDisplay
@@ -258,7 +242,6 @@ export default function TrainStatusPage() {
 		? status.arrivals[status.arrivals.length - 1]
 		: null;
 
-	// Show "Final Station" only if we are there, NOT at station, NOT en route, and NOT complete
 	const showAtFinalStation =
 		isAtFinalStation &&
 		!atStationInfo &&
@@ -298,7 +281,7 @@ export default function TrainStatusPage() {
 								This train has completed its route for today.
 							</p>
 						</div>
-					) : atStationInfo ? ( // Handles ALL at-station logic
+					) : atStationInfo ? ( 
 						<AtStationStatus
 							stationName={atStationInfo.stationName}
 							arrivedAt={atStationInfo.arrivedAt}

@@ -3,7 +3,7 @@ import apiClient from "@/lib/apiClient";
 export type FeedbackReason = "bug" | "feature" | "general" | "other";
 
 export type ContactFormPayload = {
-  userId?: string; // Optional, if user is logged in
+  userId?: string;
   name: string;
   email: string;
   reason: FeedbackReason;

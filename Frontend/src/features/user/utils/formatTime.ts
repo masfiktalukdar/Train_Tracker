@@ -10,19 +10,19 @@ export function format24HourTime(time: string | undefined | null): string {
   try {
     const [hours, minutes] = time.split(":").map(Number);
     if (isNaN(hours) || isNaN(minutes)) {
-      return time; // Return original string if parsing fails
+      return time; 
     }
 
     const ampm = hours >= 12 ? "PM" : "AM";
-    const h12 = hours % 12 || 12; // Convert 0 or 12 to 12
+    const h12 = hours % 12 || 12; 
 
-    const h12String = h12.toString(); // No leading zero
+    const h12String = h12.toString(); 
     const mPadded = minutes.toString().padStart(2, "0");
 
     return `${h12String}:${mPadded} ${ampm}`;
   } catch (e) {
     console.error("Failed to format time:", time, e);
-    return time; // Return original string on error
+    return time; 
   }
 }
 
@@ -38,7 +38,6 @@ export function formatTimeFromDate(
   }
   try {
     const d = new Date(date);
-    // Using 'en-US' locale inherently gives 12-hour format without leading zero
     return d.toLocaleTimeString("en-US", {
       hour: "numeric",
       minute: "2-digit",

@@ -91,7 +91,7 @@ export default function StationStatusPage() {
 				arrivalsCount > departuresCount
 			) {
 				arrived.push(train);
-				return; // A train can't be Arrived and Arriving Soon
+				return;
 			}
 
 			// --- "Arriving Soon" Logic ---

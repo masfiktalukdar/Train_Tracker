@@ -1,54 +1,45 @@
 import apiClient from "@/lib/apiClient";
 
-// Helper to get today's date as YYYY-MM-DD string
 export const getTodayDateString = (): string => {
   return new Date().toISOString().split("T")[0];
 };
 
 export type StationArrivalRecord = {
-  id: string; // uuid for this specific arrival
+  id: string; 
   stationId: string;
   stationName: string;
-  arrivedAt: string; // ISO timestamp
+  arrivedAt: string; 
 };
 
-// NEW: Departure Record Type
 export type StationDepartureRecord = {
-  id: string; // uuid for this specific departure
+  id: string; 
   stationId: string;
   stationName: string;
-  departedAt: string; // ISO timestamp
+  departedAt: string; 
 };
 
-// This matches your 'daily_status' table
 export type DailyTrainStatus = {
   train_id: number;
-  date: string; // "YYYY-MM-DD"
+  date: string; 
   lap_completed: boolean;
   arrivals: StationArrivalRecord[];
-  departures: StationDepartureRecord[]; // NEW
+  departures: StationDepartureRecord[];
   last_completed_station_id: string | null;
 };
 
-// This is the payload for the 'upsert' operation
 export type UpdateStatusPayload = Omit<DailyTrainStatus, "train_id"> & {
   train_id: number;
 };
 
-/**
- * Fetches the daily status for a specific train and date.
- * Returns null if no record exists for today.
- */
+
 export const getDailyStatus = async (
   trainId: number,
   date: string
 ): Promise<DailyTrainStatus | null> => {
   try {
-    // FIX: Hit the /public/status route instead of /admin/status
     const { data } = await apiClient.get(
       `/public/status/${trainId}?date=${date}`
     );
-    // Ensure departures is an array if it's null/undefined
     if (data) {
       data.departures = data.departures || [];
     }
@@ -59,15 +50,10 @@ export const getDailyStatus = async (
   }
 };
 
-/**
- * Updates (or creates) the daily status for a train.
- * This corresponds to your backend's 'upsert' endpoint.
- */
 export const updateDailyStatus = async (
   payload: UpdateStatusPayload
 ): Promise<DailyTrainStatus> => {
   const { data } = await apiClient.post("/admin/status/update", payload);
-  // Ensure departures is an array if it's null/undefined
   if (data) {
     data.departures = data.departures || [];
   }

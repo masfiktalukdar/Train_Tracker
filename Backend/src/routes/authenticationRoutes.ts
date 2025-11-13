@@ -23,28 +23,9 @@ router.post('/register', async (req: Request, res: Response) => {
     return res.status(400).json({ error: authError.message });
   }
 
-  // Type guard to ensure the user object exists
   if (!authData.user) {
     return res.status(500).json({ error: 'User could not be created.' });
   }
-
-  // --- 2. THIS BLOCK IS NOW REMOVED ---
-  // The database trigger 'on_auth_user_created'
-  // handles this automatically.
-  /*
-  const { error: profileError } = await supabase
-    .from('profiles')
-    .insert({
-      id: authData.user.id,
-      email: email,
-      role: 'user'
-    });
-
-  if (profileError) {
-    return res.status(500).json({ error: profileError.message });
-  }
-  */
-
   res.status(201).json({ message: 'User registered. Please check your email to verify.' });
 });
 
@@ -64,7 +45,6 @@ router.post('/login', async (req: Request, res: Response) => {
   if (authError) {
     return res.status(400).json({ error: authError.message });
   }
-  // Type guard to ensure the user object exists
   if (!authData.user) {
     return res.status(400).json({ error: 'Login failed, user data not found.' });
   }
@@ -88,10 +68,10 @@ router.post('/login', async (req: Request, res: Response) => {
     {
       id: authData.user.id,
       email: authData.user.email,
-      role: profileData.role // This is the crucial part
+      role: profileData.role 
     },
     process.env.JWT_SECRET,
-    { expiresIn: '1d' } // Token expires in 1 day
+    { expiresIn: '1d' } 
   );
   res.json({
     message: 'Login successful',

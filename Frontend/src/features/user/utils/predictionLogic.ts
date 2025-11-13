@@ -2,7 +2,7 @@ import type { TrainHistoryRecord } from "@features/user/api/historyApi";
 import type { Station, TrainStoppage } from "@/types/dataModels";
 
 const AVG_TRAVEL_TIME = "AVG_TRAVEL_TIME";
-const CACHE_TTL = 1000 * 60 * 60; // 1 hour cache
+const CACHE_TTL = 1000 * 60 * 60; 
 const FIVE_MINUTES_MS = 1000 * 60 * 5;
 
 type TravelTimeCache = {
@@ -39,15 +39,15 @@ export function getAverageTravelTime(
 
   for (const record of history) {
     const arrivals = record.arrivals || [];
-    const departures = record.departures || []; // NEW
-    let timeA: number | null = null; // Departure time from A
-    let timeB: number | null = null; // Arrival time at B
+    const departures = record.departures || []; 
+    let timeA: number | null = null; 
+    let timeB: number | null = null; 
 
     // Find the departure time for A
     for (const departure of departures) {
       if (departure.stationId === stationA_id) {
         timeA = new Date(departure.departedAt).getTime();
-        break; // Found departure from A
+        break; 
       }
     }
 
@@ -55,14 +55,13 @@ export function getAverageTravelTime(
     for (const arrival of arrivals) {
       if (arrival.stationId === stationB_id) {
         timeB = new Date(arrival.arrivedAt).getTime();
-        break; // Found arrival at B
+        break; 
       }
     }
 
     // If we found both and B is after A, record the duration
     if (timeA && timeB && timeB > timeA) {
       const duration = timeB - timeA;
-      // Sanity check: ignore travel times over 12 hours
       if (duration < 1000 * 60 * 60 * 12) {
         travelTimes.push(duration);
       }
@@ -70,7 +69,7 @@ export function getAverageTravelTime(
   }
 
   if (travelTimes.length === 0) {
-    return null; // Not enough data
+    return null; 
   }
 
   const average = travelTimes.reduce((a, b) => a + b, 0) / travelTimes.length;
@@ -97,7 +96,7 @@ export function getDefaultTravelTime(
   stationA_id: string,
   stationB_id: string,
   legDirection: "up" | "down",
-  isFirstStation: boolean // NEW: Is stationA the first station of the leg?
+  isFirstStation: boolean 
 ): number | null {
   const stoppageA = stoppages.find((s) => s.stationId === stationA_id);
   const stoppageB = stoppages.find((s) => s.stationId === stationB_id);
@@ -142,7 +141,7 @@ export function getDefaultTravelTime(
  */
 export function parseTimeToToday(time: string, addDay = false): number {
   if (!time || !time.includes(":")) {
-    return 0; // Return 0 or handle as an error
+    return 0; 
   }
   const [hours, minutes] = time.split(":").map(Number);
   if (isNaN(hours) || isNaN(minutes)) {

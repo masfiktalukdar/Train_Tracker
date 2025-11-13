@@ -21,13 +21,13 @@ export type Prediction = {
 
 export type AtStationInfo = {
   stationName: string;
-  departureTime: number; // The *predicted* departure time
-  arrivedAt: number; // The *actual* arrival time
-  isTurnaround: boolean; // NEW: Flag for turnaround
+  departureTime: number; 
+  arrivedAt: number; 
+  isTurnaround: boolean; 
 };
 
 const FIVE_MINUTES_MS = 1000 * 60 * 5;
-const DEFAULT_FALLBACK_MS = 1000 * 60 * 30; // 30 minutes
+const DEFAULT_FALLBACK_MS = 1000 * 60 * 30; 
 
 export function useTrainPrediction(
   train?: ApiTrain | null,
@@ -56,11 +56,10 @@ export function useTrainPrediction(
     enabled: !!train,
   });
 
-  // This timer updates 'now' every 10 seconds to refresh calculations
   useEffect(() => {
     const timer = setInterval(() => {
       setNow(Date.now());
-    }, 10000); // 10 seconds
+    }, 10000); 
     return () => clearInterval(timer);
   }, []);
 
@@ -99,7 +98,6 @@ export function useTrainPrediction(
         (s) => s.stationId === turnStation.stationId
       );
       if (turnStoppage) {
-        // The turnaround departure time is the *opposite* of the train's primary direction
         turnDefaultTime =
           train.direction === "up"
             ? turnStoppage.downArrivalTime
@@ -174,7 +172,6 @@ export function useTrainPrediction(
       lastArrival.stationId === finalStation.stationId
     ) {
       if (!isAtFinalStation) setIsAtFinalStation(true);
-      // Don't return, we might still be "At Station"
     } else if (isAtFinalStation) {
       setIsAtFinalStation(false);
     }
@@ -182,8 +179,6 @@ export function useTrainPrediction(
     // --- 4. Determine Current State (Pending, At Station, or En Route) ---
 
     if (arrivalsCount === 0) {
-      // --- STATE: PENDING DEPARTURE ---
-      // Train hasn't started yet.
       predictionStartIndex = 0;
       const firstStoppage = journey[0]
         ? train.stoppages.find((s) => s.stationId === journey[0].stationId)
@@ -195,17 +190,12 @@ export function useTrainPrediction(
 
       predictionStartTime = parseTimeToToday(scheduledStartTimeStr || "");
       if (predictionStartTime === 0) {
-        // Fallback if schedule is missing
         predictionStartTime = now;
       } else if (predictionStartTime < now) {
-        // Train is late to start
         newWarning = "Train is late to begin its journey.";
-        // Predict from *now*
         predictionStartTime = now;
       }
     } else if (arrivalsCount > departuresCount) {
-      // --- STATE: AT STATION ---
-      // Train has arrived but not departed.
       const lastArrivalTime = new Date(lastArrival!.arrivedAt).getTime();
       const currentStationName = lastArrival!.stationName;
 
@@ -229,14 +219,14 @@ export function useTrainPrediction(
         stationName: currentStationName,
         departureTime: scheduledDepartureTime,
         arrivedAt: lastArrivalTime,
-        isTurnaround: isTurnaround, // Pass flag
+        isTurnaround: isTurnaround, 
       };
 
-      predictionStartIndex = arrivalsCount; // Next station to predict is after this one
-      predictionStartTime = scheduledDepartureTime; // Predictions start from departure
+      predictionStartIndex = arrivalsCount; 
+      predictionStartTime = scheduledDepartureTime; 
 
       // Check for "Late at Station"
-      const lateTime = now - scheduledDepartureTime - FIVE_MINUTES_MS; // 5 min grace period
+      const lateTime = now - scheduledDepartureTime - FIVE_MINUTES_MS; 
       if (lateTime > 0) {
         const minutesLate = Math.round(lateTime / 60000);
         newWarning = `The train is getting late in ${currentStationName} for ${minutesLate} minutes`;
@@ -248,18 +238,12 @@ export function useTrainPrediction(
       // arrivalsCount === departuresCount, and > 0
       // Train has departed and is moving.
       const lastDepartureTime = new Date(lastDeparture!.departedAt).getTime();
-      // const fromStationName = lastDeparture!.stationName;
-      const nextStation = journey[departuresCount]; // Next station is at index `departuresCount`
-
+      const nextStation = journey[departuresCount]; 
       if (nextStation) {
-        predictionStartIndex = departuresCount; // Start prediction from this station
-        predictionStartTime = lastDepartureTime; // Predictions start from actual departure time
-
-        // We will set newCurrentTravelInfo *after* calculating predictions
-        // to get the first prediction's endTime.
+        predictionStartIndex = departuresCount; 
+        predictionStartTime = lastDepartureTime; 
       } else {
-        // This shouldn't happen if lap_completed is false, but as a fallback:
-        predictionStartIndex = -1; // No more stations
+        predictionStartIndex = -1; 
         predictionStartTime = now;
       }
     }
@@ -273,42 +257,28 @@ export function useTrainPrediction(
         const currentStation = journey[i];
         let travelTime: number | null = 0;
         let type: Prediction["type"] = "default";
-        let lastStationId: string | undefined; // Can be undefined for first station
+        let lastStationId: string | undefined; 
 
         // --- Determine travelTime and lastStationId ---
         if (i === 0 && predictionStartIndex === 0) {
-          // --- Case: PENDING ---
-          // This is the first station (journey[0]).
-          // The "travel time" is 0, the arrival is the scheduled start.
           travelTime = 0;
           type = "default";
-          lastStationId = undefined; // No last station, so travelTime is 0.
+          lastStationId = undefined; 
         } else {
           // --- Case: AT_STATION, EN_ROUTE, or SUBSEQUENT ---
-
-          // Determine the ID of the station we are predicting *from*
           if (i === predictionStartIndex) {
-            // This is the *first* prediction in this run
             if (arrivalsCount > departuresCount) {
-              // We are AT a station. Predict from here.
               lastStationId = journey[arrivalsCount - 1].stationId;
             } else {
-              // We are EN ROUTE. Predict from the station we departed.
-              // This block is safe because (arrivalsCount > 0)
               lastStationId = journey[departuresCount - 1].stationId;
             }
           } else {
-            // This is a subsequent prediction (i > predictionStartIndex).
-            // Predict from the previous station in the list.
             lastStationId = journey[i - 1].stationId;
           }
-
-          // Handle if lastStationId is still undefined (shouldn't happen, but good safety)
           if (!lastStationId) {
             travelTime = DEFAULT_FALLBACK_MS;
             type = "default";
           } else {
-            // We have a valid lastStationId, get travel time
             const currentStationId = currentStation.stationId;
             const isFirstStationOfLeg = i === 0 || i === firstLegLength;
 
@@ -353,8 +323,6 @@ export function useTrainPrediction(
           predictedTime: predictedArrival,
           type: type,
         });
-
-        // Next event time includes the stoppage
         lastEventTime = predictedArrival.getTime() + FIVE_MINUTES_MS;
       }
     }
@@ -408,8 +376,8 @@ export function useTrainPrediction(
     journey,
     firstLegLength,
     finalStation,
-    isJourneyComplete, // Added to ensure re-run when status becomes complete
-    isAtFinalStation, // Added for same reason
+    isJourneyComplete, 
+    isAtFinalStation, 
     turnaroundStation,
     turnaroundDefaultDepartureTime,
   ]);
@@ -418,7 +386,7 @@ export function useTrainPrediction(
     predictions,
     currentTravelInfo,
     atStationInfo,
-    atTurnaroundInfo: null, // This is now deprecated
+    atTurnaroundInfo: null, 
     isJourneyComplete,
     isAtFinalStation,
     warning,

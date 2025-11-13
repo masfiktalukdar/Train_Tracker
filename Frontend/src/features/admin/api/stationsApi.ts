@@ -1,19 +1,15 @@
 import apiClient from "@/lib/apiClient";
 import type { Station } from "@app-types/dataModels";
 
-// Type from Supabase (it adds 'id' and 'created_at')
 export type ApiStation = Station & {
   id: number;
   created_at: string;
 };
 
-// Define the type for a new station (without ID)
 export type NewStationData = Omit<Station, "stationId">;
 
 export type UpdateStationData = Partial<NewStationData>;
 
-// --- ADDED ---
-// This is the raw type returned from the Supabase GET /public/stations
 type DbStation = {
   id: number;
   created_at: string;
@@ -24,17 +20,15 @@ type DbStation = {
 };
 
 export const getStations = async (): Promise<ApiStation[]> => {
-  // 1. FIX: Hit the /public/stations route
   const { data } = await apiClient.get<DbStation[]>("/public/stations");
 
-  // 2. FIX: Map snake_case response to camelCase ApiStation type
   return data.map((dbStation) => ({
     id: dbStation.id,
     created_at: dbStation.created_at,
     stationId: dbStation.station_id,
     stationName: dbStation.station_name,
-    stationLocation: dbStation.station_location || "", // Handle null values
-    stationLocationURL: dbStation.station_location_url || "", // Handle null values
+    stationLocation: dbStation.station_location || "", 
+    stationLocationURL: dbStation.station_location_url || "", 
   }));
 };
 
@@ -47,12 +41,8 @@ export const createStation = async (
     stationLocation: station.stationLocation,
     stationLocationURL: station.stationLocationURL,
   };
-  // This call is correct, as the /admin/stations POST route
-  // expects camelCase and maps it on the backend.
-  // We just need to map the snake_case response.
   const { data } = await apiClient.post<DbStation>("/admin/stations", payload);
 
-  // FIX: Map the snake_case response to camelCase
   return {
     id: data.id,
     created_at: data.created_at,
@@ -70,8 +60,6 @@ export const updateStation = async ({
   id: number;
   updates: UpdateStationData;
 }): Promise<ApiStation> => {
-  // This payload is correct, as the /admin/stations PUT route
-  // expects snake_case keys for updates.
   const payload: Record<string, string | undefined> = {
     station_name: updates.stationName,
     station_location: updates.stationLocation,
@@ -87,7 +75,6 @@ export const updateStation = async ({
     payload
   );
 
-  // FIX: Map the snake_case response to camelCase
   return {
     id: data.id,
     created_at: data.created_at,

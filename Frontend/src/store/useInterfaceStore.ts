@@ -13,8 +13,8 @@ export const useInterfaceStore = create<InterfaceState>()(
       setHasOnboarded: (status) => set({ hasOnboarded: status }),
     }),
     {
-      name: 'user-interface-storage', // key in localStorage
-      storage: createJSONStorage(() => localStorage), // Use localStorage
+      name: 'user-interface-storage',
+      storage: createJSONStorage(() => localStorage),
     }
   )
 );

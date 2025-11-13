@@ -11,7 +11,7 @@ import {
 	UpdateStatusPayload,
 	DailyTrainStatus,
 	StationArrivalRecord,
-	StationDepartureRecord, // NEW
+	StationDepartureRecord, 
 } from "@/features/admin/api/statusApi";
 import {
 	ArrowRight,
@@ -21,14 +21,13 @@ import {
 	TrainFront,
 	X,
 	Loader2,
-	LogOut, // NEW: Using for Depart
-	Undo2, // NEW: Using for Undo
+	LogOut, 
+	Undo2, 
 } from "lucide-react";
 import {
 	format24HourTime,
 	formatTimeFromDate,
-} from "@/features/user/utils/formatTime"; // NEW IMPORT
-
+} from "@/features/user/utils/formatTime"; 
 type TrainJourneyModalProps = {
 	train: ApiTrain;
 	route: ApiRoute;
@@ -104,12 +103,10 @@ export default function TrainJourneyModal({
 	const statusUpdateMutation = useMutation({
 		mutationFn: updateDailyStatus,
 		onSuccess: (updatedStatus) => {
-			// Optimistically update the cache
 			queryClient.setQueryData(queryKey, updatedStatus);
 		},
 		onError: (err) => {
 			console.error("Failed to update status:", err);
-			// Refetch to revert optimistic update
 			queryClient.invalidateQueries({ queryKey: queryKey });
 		},
 	});
@@ -133,15 +130,15 @@ export default function TrainJourneyModal({
 		date: today,
 		lap_completed: false,
 		arrivals: [],
-		departures: [], // NEW
+		departures: [],
 		last_completed_station_id: null,
 	};
 
 	const status = todaysStatus || defaultStatus;
 	const { lap_completed: lapCompleted } = status;
 	const lastCompletedArrivalIndex = status.arrivals.length - 1;
-	const arrivalsCount = status.arrivals.length; // NEW
-	const departuresCount = status.departures.length; // NEW
+	const arrivalsCount = status.arrivals.length;
+	const departuresCount = status.departures.length;
 
 	// --- Handlers ---
 	const handleArrive = (
@@ -150,10 +147,10 @@ export default function TrainJourneyModal({
 		if (
 			lapCompleted ||
 			statusUpdateMutation.isPending ||
-			station.journeyIndex !== arrivalsCount || // Can only arrive at the *next* station
-			arrivalsCount !== departuresCount // NEW: Must have departed previous station
+			station.journeyIndex !== arrivalsCount || 
+			arrivalsCount !== departuresCount 
 		) {
-			return; // Can only arrive at the *next* station
+			return; 
 		}
 
 		const newArrival: StationArrivalRecord = {
@@ -168,8 +165,6 @@ export default function TrainJourneyModal({
 			arrivals: [...status.arrivals, newArrival],
 			last_completed_station_id: station.stationId,
 		};
-
-		// Optimistically update before firing mutation
 		queryClient.setQueryData(queryKey, newStatus);
 		statusUpdateMutation.mutate(newStatus);
 	};
@@ -180,10 +175,8 @@ export default function TrainJourneyModal({
 		if (
 			lapCompleted ||
 			statusUpdateMutation.isPending ||
-			// Can only depart from the last *arrived* station
 			station.journeyIndex !== lastCompletedArrivalIndex ||
-			// Can only depart if we haven't already
-			station.journeyIndex !== departuresCount // Use departuresCount
+			station.journeyIndex !== departuresCount 
 		) {
 			return;
 		}
@@ -198,10 +191,7 @@ export default function TrainJourneyModal({
 		const newStatus: UpdateStatusPayload = {
 			...status,
 			departures: [...status.departures, newDeparture],
-			// last_completed_station_id doesn't change on departure
 		};
-
-		// Optimistically update before firing mutation
 		queryClient.setQueryData(queryKey, newStatus);
 		statusUpdateMutation.mutate(newStatus);
 	};
@@ -214,7 +204,6 @@ export default function TrainJourneyModal({
 		const departuresCount = status.departures.length;
 
 		if (arrivalsCount > departuresCount) {
-			// Last action was an ARRIVAL. Undo it.
 			const newArrivals = status.arrivals.slice(0, -1);
 			const newLastStationId =
 				newArrivals.length > 0
@@ -227,7 +216,6 @@ export default function TrainJourneyModal({
 				lap_completed: false,
 			};
 		} else if (arrivalsCount === departuresCount && arrivalsCount > 0) {
-			// Last action was a DEPARTURE. Undo it.
 			const newDepartures = status.departures.slice(0, -1);
 			newStatus = {
 				...status,
@@ -235,7 +223,6 @@ export default function TrainJourneyModal({
 				lap_completed: false,
 			};
 		} else {
-			// Nothing to undo
 			return;
 		}
 
@@ -245,8 +232,6 @@ export default function TrainJourneyModal({
 
 	const handleCompleteLap = () => {
 		if (lapCompleted || statusUpdateMutation.isPending) return;
-
-		// Can only complete if we have arrived at the final station
 		if (lastCompletedArrivalIndex === fullJourney.length - 1) {
 			const newStatus: UpdateStatusPayload = {
 				...status,
@@ -317,13 +302,10 @@ export default function TrainJourneyModal({
 								const isClickableToArrive =
 									!lapCompleted &&
 									isNextToArrive &&
-									arrivalsCount === departuresCount; // NEW CHECK
-
-								// --- FIX: DO NOT show depart button for the final station ---
+									arrivalsCount === departuresCount;
 								const isFinalStation = index === fullJourney.length - 1;
 								const isClickableToDepart =
 									!lapCompleted && isWaitingToDepart && !isFinalStation;
-								// --- END FIX ---
 
 								let title = "Not yet arrived";
 								if (isClickableToArrive) title = "Click to mark as Arrived";
@@ -395,7 +377,7 @@ export default function TrainJourneyModal({
 													title={`Click to mark as Departed from ${station.stationName}`}
 													className="ml-2 px-2 py-1 bg-yellow-500 text-white rounded-md text-xs font-bold hover:bg-yellow-600 flex items-center gap-1"
 													onClick={(e) => {
-														e.stopPropagation(); // Don't trigger arrive click
+														e.stopPropagation(); 
 														handleDepart(station);
 													}}
 													disabled={statusUpdateMutation.isPending}

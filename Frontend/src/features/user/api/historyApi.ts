@@ -1,5 +1,4 @@
 import apiClient from "@/lib/apiClient";
-// Import the new departure type
 import type {
   StationArrivalRecord,
   StationDepartureRecord,
@@ -8,7 +7,7 @@ import type {
 export type TrainHistoryRecord = {
   date: string;
   arrivals: StationArrivalRecord[];
-  departures: StationDepartureRecord[]; // NEW
+  departures: StationDepartureRecord[];
 };
 
 /**
@@ -21,7 +20,6 @@ export const getTrainHistory = async (
     const { data } = await apiClient.get<TrainHistoryRecord[]>(
       `/public/history/${trainId}`
     );
-    // Ensure departures is an array for each record
     return (
       data?.map((record) => ({
         ...record,
@@ -31,6 +29,6 @@ export const getTrainHistory = async (
     );
   } catch (error) {
     console.error("Failed to fetch train history:", error);
-    return []; // Return empty array on error
+    return []; 
   }
 };

@@ -4,10 +4,9 @@ import supabase from "../config/supabaseClient.js";
 import adminAuth from "../middleware/adminAuth.js";
 const router = Router();
 
-// This middleware ensures only authenticated admins can access any route in this file.
 router.use(adminAuth);
 
-// --- ADDED: Helper functions to parse JSON fields ---
+// Helper functions to parse JSON fields ---
 const parseRoute = (route: any) => {
   let stations = [];
   if (route.stations && typeof route.stations === "string") {
@@ -39,7 +38,6 @@ const parseTrain = (train: any) => {
 // === DASHBOARD STATS ===
 router.get("/dashboard/stats", async (req: Request, res: Response) => {
   try {
-    // --- 1. Get all counts in parallel ---
     const [
       totalUsersData,
       totalRoutesData,
@@ -55,7 +53,7 @@ router.get("/dashboard/stats", async (req: Request, res: Response) => {
     // --- 2. Get user registration data for the chart ---
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-    sixMonthsAgo.setDate(1); // Start from the 1st of that month
+    sixMonthsAgo.setDate(1);
 
     const { data: users, error: usersError } = await supabase
       .from("profiles")
@@ -74,14 +72,13 @@ router.get("/dashboard/stats", async (req: Request, res: Response) => {
       d <= today;
       d.setDate(d.getDate() + 1)
     ) {
-      const key = d.toISOString().split("T")[0]!; // "YYYY-MM-DD"
+      const key = d.toISOString().split("T")[0]!; 
       counts.set(key, 0);
     }
 
     // Aggregate user signups by day
     if (users) {
       for (const user of users) {
-        // Get "YYYY-MM-DD" from the user's timestamp
         const key = new Date(user.created_at).toISOString().split("T")[0]!;
         if (counts.has(key)) {
           counts.set(key, counts.get(key)! + 1);
@@ -91,7 +88,7 @@ router.get("/dashboard/stats", async (req: Request, res: Response) => {
 
     // Format for chart, matching new ChartDataEntry type
     const chartData = Array.from(counts.entries()).map(([date, count]) => ({
-      date: date, // "YYYY-MM-DD"
+      date: date,
       registrationCount: count,
     }));
 
@@ -117,13 +114,12 @@ router.get("/dashboard/stats", async (req: Request, res: Response) => {
 
 // === LIVE STATUS API ===
 router.post("/status/update", async (req: Request, res: Response) => {
-  // UPDATED: Added 'departures'
   const {
     train_id,
     date,
     lap_completed,
     arrivals,
-    departures, // NEW
+    departures,
     last_completed_station_id,
   } = req.body;
 
@@ -135,7 +131,7 @@ router.post("/status/update", async (req: Request, res: Response) => {
         date,
         lap_completed,
         arrivals,
-        departures, // NEW
+        departures,
         last_completed_station_id,
       },
       {
@@ -161,7 +157,6 @@ router.post("/status/update", async (req: Request, res: Response) => {
     data.arrivals = [];
   }
 
-  // NEW: Parse 'departures'
   if (data && data.departures && typeof data.departures === "string") {
     try {
       data.departures = JSON.parse(data.departures);
@@ -175,9 +170,7 @@ router.post("/status/update", async (req: Request, res: Response) => {
   res.json(data);
 });
 
-// =================================================================
 // --- STATION ROUTES ---
-// =================================================================
 
 // CREATE a new station
 router.post("/stations", async (req: Request, res: Response) => {
@@ -197,13 +190,13 @@ router.post("/stations", async (req: Request, res: Response) => {
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
-  res.status(201).json(data); // This is fine, no JSON fields
+  res.status(201).json(data); 
 });
 
 // UPDATE an existing station
 router.put("/stations/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
-  const updates = req.body; // Frontend already sends snake_case for updates
+  const updates = req.body;
 
   const { data, error } = await supabase
     .from("stations")
@@ -213,23 +206,20 @@ router.put("/stations/:id", async (req: Request, res: Response) => {
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
-  res.json(data); // This is fine, no JSON fields
+  res.json(data);
 });
 
 // DELETE a station
-// ... (your existing delete station route is fine) ...
 router.delete("/stations/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
 
   const { error } = await supabase.from("stations").delete().eq("id", id);
 
   if (error) return res.status(500).json({ error: error.message });
-  res.status(204).send(); // 204 No Content
+  res.status(204).send();
 });
 
-// =================================================================
 // --- ROUTE ROUTES ---
-// =================================================================
 
 // CREATE a new route
 router.post("/routes", async (req: Request, res: Response) => {
@@ -237,20 +227,18 @@ router.post("/routes", async (req: Request, res: Response) => {
 
   const { data, error } = await supabase
     .from("routes")
-    .insert({ name, stations }) // Body matches table structure
+    .insert({ name, stations })
     .select()
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
-
-  // FIX: Parse the response before sending
   res.status(201).json(parseRoute(data));
 });
 
 // UPDATE an existing route
 router.put("/routes/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { name, stations } = req.body; // Body matches table structure
+  const { name, stations } = req.body;
 
   const { data, error } = await supabase
     .from("routes")
@@ -261,12 +249,10 @@ router.put("/routes/:id", async (req: Request, res: Response) => {
 
   if (error) return res.status(500).json({ error: error.message });
 
-  // FIX: Parse the response before sending
   res.json(parseRoute(data));
 });
 
 // DELETE a route
-// ... (your existing delete route is fine) ...
 router.delete("/routes/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
 
@@ -276,9 +262,7 @@ router.delete("/routes/:id", async (req: Request, res: Response) => {
   res.status(204).send(); // 204 No Content
 });
 
-// =================================================================
 // --- TRAIN ROUTES ---
-// =================================================================
 
 // CREATE a new train
 router.post("/trains", async (req: Request, res: Response) => {
@@ -291,15 +275,13 @@ router.post("/trains", async (req: Request, res: Response) => {
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
-
-  // FIX: Parse the response before sending
   res.status(201).json(parseTrain(data));
 });
 
 // UPDATE an existing train
 router.put("/trains/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
-  const updates = req.body; // Frontend sends partial data matching table
+  const updates = req.body;
 
   const { data, error } = await supabase
     .from("trains")
@@ -309,36 +291,30 @@ router.put("/trains/:id", async (req: Request, res: Response) => {
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
-
-  // FIX: Parse the response before sending
   res.json(parseTrain(data));
 });
 
 // DELETE a train
-// ... (your existing delete train route is fine) ...
 router.delete("/trains/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
 
   const { error } = await supabase.from("trains").delete().eq("id", id);
 
   if (error) return res.status(500).json({ error: error.message });
-  res.status(204).send(); // 204 No Content
+  res.status(204).send();
 });
 
-// =================================================================
 // --- FEEDBACK ROUTES (ADMIN) ---
-// =================================================================
 
 router.get("/feedback", async (req: Request, res: Response) => {
   try {
     const { page = 1, filter = "all" } = req.query;
 
-    // FIX: Ensure 'search' is a string
     let search: string;
     if (typeof req.query.search === "string") {
       search = req.query.search;
     } else {
-      search = ""; // Default to empty string if not provided, undefined, or is an array
+      search = "";
     }
 
     const limit = 15;

@@ -34,8 +34,8 @@ export default function AdminFeedbackPage() {
 		isLoading,
 		isError,
 	} = useQuery({
-		queryKey: ["feedback", filter], // Only refetch when filter changes
-		queryFn: () => getFeedback({ filter, limit: 1000 }), // Fetch up to 1000 records for client-side handling
+		queryKey: ["feedback", filter], 
+		queryFn: () => getFeedback({ filter, limit: 1000 }), 
 	});
 
 	const statusMutation = useMutation({
@@ -75,8 +75,6 @@ export default function AdminFeedbackPage() {
 		return filteredData.slice(start, start + ITEMS_PER_PAGE);
 	}, [filteredData, page]);
 
-	// Reset to page 1 when search or filter changes
-	// Using useEffect instead of useMemo for side effects is better practice here.
 	useEffect(() => {
 		setPage(1);
 	}, [search, filter]);
@@ -140,7 +138,7 @@ export default function AdminFeedbackPage() {
 							<Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
 							<select
 								value={filter}
-								// @ts-expect-error - simple string value
+								// @ts-expect-error simple string value
 								onChange={(e) => setFilter(e.target.value)}
 								className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 appearance-none bg-white w-full sm:w-auto"
 							>

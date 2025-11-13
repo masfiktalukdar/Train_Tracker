@@ -35,8 +35,8 @@ export default function SideNavigation({
 					<div className="flex items-center justify-center">
 						<img className="h-20 mb-1" src={BRLogo} alt="Train-logo" />
 					</div>
-					<h2 className="text-lg font-bold mb-8 text-center">
-						Bangaldesh Railway
+					<h2 className="text-xl lg:text-2xl font-bold mb-8 text-center">
+						Train Nojor
 					</h2>
 					<nav className="space-y-2">
 						{navItems.map((item, index) => {
@@ -45,7 +45,7 @@ export default function SideNavigation({
 								<NavLink
 									key={index}
 									to={item.path}
-									onClick={onClose} // Close menu on mobile when a link is clicked
+									onClick={onClose} 
 									className={({ isActive }) =>
 										`${
 											isActive

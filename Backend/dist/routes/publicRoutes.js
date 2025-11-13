@@ -45,7 +45,6 @@ router.get("/trains", async (req, res) => {
         .order("created_at", { ascending: true });
     if (error)
         return res.status(500).json({ error: error.message });
-    // --- FIX: Parse the 'stoppages' JSON for each train ---
     const parsedTrains = data.map((train) => {
         let stoppages = [];
         if (train.stoppages && typeof train.stoppages === "string") {
@@ -66,9 +65,8 @@ router.get("/trains", async (req, res) => {
 // --- GET LIVE STATUS FOR A SINGLE TRAIN (FOR TODAY) ---
 router.get("/status/:trainId", async (req, res) => {
     const { trainId } = req.params;
-    // Use the 'date' query param if provided, otherwise default to today
     const dateQuery = req.query.date;
-    const date = dateQuery || new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+    const date = dateQuery || new Date().toISOString().split("T")[0];
     const { data, error } = await supabase
         .from("daily_status")
         .select("*")
@@ -76,7 +74,6 @@ router.get("/status/:trainId", async (req, res) => {
         .eq("date", date)
         .single();
     if (error && error.code !== "PGRST116") {
-        // PGRST116 = no rows found
         return res.status(500).json({ error: error.message });
     }
     // Parse Arrivals
@@ -86,40 +83,39 @@ router.get("/status/:trainId", async (req, res) => {
         }
         catch (e) {
             console.error("Failed to parse arrivals JSON:", e);
-            data.arrivals = []; // Default to empty on error
+            data.arrivals = [];
         }
     }
     else if (data && !data.arrivals) {
-        data.arrivals = []; // Default to empty if null
+        data.arrivals = [];
     }
-    // NEW: Parse Departures
     if (data && data.departures && typeof data.departures === "string") {
         try {
             data.departures = JSON.parse(data.departures);
         }
         catch (e) {
             console.error("Failed to parse departures JSON:", e);
-            data.departures = []; // Default to empty on error
+            data.departures = [];
         }
     }
     else if (data && !data.departures) {
-        data.departures = []; // Default to empty if null
+        data.departures = [];
     }
-    res.json(data); // Will be null if no entry for today
+    res.json(data);
 });
 // --- NEW: GET 7-DAY HISTORY FOR A SINGLE TRAIN ---
 router.get("/history/:trainId", async (req, res) => {
     const { trainId } = req.params;
     // Get today's date
     const today = new Date();
-    today.setHours(23, 59, 59, 999); // End of today
+    today.setHours(23, 59, 59, 999);
     // Get date 7 days ago
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(today.getDate() - 7);
-    sevenDaysAgo.setHours(0, 0, 0, 0); // Start of that day
+    sevenDaysAgo.setHours(0, 0, 0, 0);
     const { data, error } = await supabase
         .from("daily_status")
-        .select("date, arrivals, departures") // NEW: select departures
+        .select("date, arrivals, departures")
         .eq("train_id", trainId)
         .gte("date", sevenDaysAgo.toISOString().split("T")[0])
         .lte("date", today.toISOString().split("T")[0])
@@ -127,10 +123,9 @@ router.get("/history/:trainId", async (req, res) => {
     if (error) {
         return res.status(500).json({ error: error.message });
     }
-    // Parse 'arrivals' and 'departures' for each historical record
     const parsedData = data.map((record) => {
         let arrivals = [];
-        let departures = []; // NEW
+        let departures = [];
         if (record.arrivals && typeof record.arrivals === "string") {
             try {
                 arrivals = JSON.parse(record.arrivals);
@@ -142,7 +137,6 @@ router.get("/history/:trainId", async (req, res) => {
         else if (Array.isArray(record.arrivals)) {
             arrivals = record.arrivals;
         }
-        // NEW: Parse departures
         if (record.departures && typeof record.departures === "string") {
             try {
                 departures = JSON.parse(record.departures);
@@ -169,7 +163,7 @@ router.post("/feedback", async (req, res) => {
     const { data, error } = await supabase
         .from("feedback")
         .insert({
-        user_id: userId || null, // Optional linkage to auth user
+        user_id: userId || null,
         name,
         email,
         reason,

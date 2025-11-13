@@ -1,5 +1,5 @@
 export type ChartDataEntry = {
-  date: string; // "YYYY-MM-DD"
+  date: string; 
   registrationCount: number;
 };
 

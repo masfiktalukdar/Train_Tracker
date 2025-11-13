@@ -10,17 +10,13 @@ export default function ProtectedUserLayout() {
 	const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
 	const location = useLocation();
 
-	// User is not authenticated at all
 	if (!isAuthenticated) {
 		return <Navigate to="/login" state={{ from: location }} replace />;
 	}
 
-	// User is authenticated, but is an admin
-	// Send them to the admin dashboard
 	if (user?.role === "admin") {
 		return <Navigate to="/admin/dashboard" replace />;
 	}
 
-	// User is authenticated and is a 'user'
 	return <Outlet />;
 }

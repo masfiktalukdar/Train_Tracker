@@ -1,6 +1,5 @@
 import {
 	useAdminStationModalToogle,
-	// We no longer need useAdminStationData
 } from "@/store/adminStationStore";
 import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -10,9 +9,9 @@ import {
 	ApiStation,
 	NewStationData,
 	UpdateStationData,
-} from "@/features/admin/api/stationsApi"; // Import API functions
+} from "@/features/admin/api/stationsApi"; 
 
-// Update the props to receive a full station object
+
 type operationName = {
 	operation: "add" | "update";
 	stationToEdit: ApiStation | null;
@@ -107,7 +106,7 @@ export default function AdminStationModal({
 			// Only mutate if there are changes
 			updateStationMutation.mutate({ id: stationToEdit.id, updates });
 		} else {
-			closeModal(); // No changes, just close
+			closeModal();
 		}
 	};
 

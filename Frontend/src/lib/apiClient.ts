@@ -4,7 +4,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
 
 const apiClient = axios.create({
-  baseURL: API_URL, // Or your backend port
+  baseURL: API_URL,
 });
 
 // Interceptor 1: Runs BEFORE every request is sent
@@ -27,12 +27,9 @@ apiClient.interceptors.request.use(
 // Interceptor 2: Runs AFTER every response is received
 apiClient.interceptors.response.use(
   (response) => {
-    // If the response is successful (status 2xx), just return it
     return response;
   },
   (error) => {
-    // If the response is an error
-
     // Check if it's a 401 Unauthorized error
     if (error.response && error.response.status === 401) {
       console.error("API request unauthorized (401). Token may be expired. Logging out.");
@@ -53,9 +50,6 @@ apiClient.interceptors.response.use(
       // Return a rejected promise to stop the original mutation/query from proceeding
       return Promise.reject(new Error("Session expired. Please log in again."));
     }
-
-    // For all other errors (404, 500, etc.), just pass them along
-    // so the useMutation's onError can handle them.
     return Promise.reject(error);
   }
 );

@@ -23,11 +23,9 @@ function getScheduledTime(
 	const stoppage = train.stoppages.find((s) => s.stationId === stationId);
 	if (!stoppage) return null;
 
-	// Determine leg based on train's primary direction
 	if (train.direction === "up") {
 		return leg === "first" ? stoppage.upArrivalTime : stoppage.downArrivalTime;
 	} else {
-		// Train's primary direction is 'down'
 		return leg === "first" ? stoppage.downArrivalTime : stoppage.upArrivalTime;
 	}
 }
@@ -37,12 +35,11 @@ export default function TrainCard({ train, route, status }: TrainCardProps) {
 		? getFullJourney(route.stations, train.stoppages, train.direction)
 		: [];
 
-	// --- NEW LOGIC based on arrivals vs departures ---
 	const arrivalsCount = status?.arrivals?.length ?? 0;
-	const departuresCount = status?.departures?.length ?? 0; // Use departures
+	const departuresCount = status?.departures?.length ?? 0;
 	const lastArrival =
 		arrivalsCount > 0 ? status?.arrivals?.[arrivalsCount - 1] : undefined;
-	const nextStation = journey[arrivalsCount]; // Next to arrive
+	const nextStation = journey[arrivalsCount]; 
 
 	// Calculate first leg length
 	const firstLegLength = route
@@ -65,11 +62,9 @@ export default function TrainCard({ train, route, status }: TrainCardProps) {
 	const formattedFirstTime = format24HourTime(firstStationTime);
 
 	if (!status || arrivalsCount === 0) {
-		// PENDING (Not started)
 		statusText = "Pending Departure";
 		statusDetail = `Will start at ~ ${formattedFirstTime}`;
 	} else if (status.lap_completed) {
-		// COMPLETED
 		statusText = "Journey Completed";
 		statusDetail = "This train has finished its route for today.";
 		StatusIcon = CheckCircle;
@@ -77,7 +72,6 @@ export default function TrainCard({ train, route, status }: TrainCardProps) {
 		bgColor = "bg-green-100";
 		barColor = "bg-green-500";
 	} else if (arrivalsCount > departuresCount && lastArrival) {
-		// AT STATION (Arrived, not departed)
 		const isAtTurnaround =
 			lastArrival && firstLegLength > 0 && arrivalsCount === firstLegLength;
 
@@ -85,19 +79,18 @@ export default function TrainCard({ train, route, status }: TrainCardProps) {
 			statusText = `At ${lastArrival.stationName.split(" ")[0]} (Turnaround)`;
 			statusDetail = "Waiting for turnaround...";
 			StatusIcon = MapPin;
-			iconColor = "text-red-600"; // Use red for turnaround
+			iconColor = "text-red-600"; 
 			bgColor = "bg-red-100";
 			barColor = "bg-red-500";
 		} else {
 			statusText = `At ${lastArrival.stationName.split(" ")[0]}`;
 			statusDetail = "Waiting for departure...";
 			StatusIcon = MapPin;
-			iconColor = "text-yellow-600"; // Use yellow for regular stops
+			iconColor = "text-yellow-600";
 			bgColor = "bg-yellow-100";
 			barColor = "bg-yellow-500";
 		}
 	} else if (arrivalsCount === departuresCount && nextStation && lastArrival) {
-		// EN ROUTE (Departed, not yet arrived at next)
 		statusText = `En Route to ${nextStation.stationName.split(" ")[0]}`;
 		statusDetail = `Departed from ${lastArrival.stationName.split(" ")[0]}`;
 		StatusIcon = Train;
@@ -105,7 +98,6 @@ export default function TrainCard({ train, route, status }: TrainCardProps) {
 		bgColor = "bg-blue-100";
 		barColor = "bg-blue-500";
 	} else if (arrivalsCount > 0 && !nextStation && lastArrival) {
-		// AT FINAL STATION (Arrived at last stop, not yet marked complete)
 		statusText = `At ${lastArrival.stationName.split(" ")[0]}`;
 		statusDetail = "Final destination reached.";
 		StatusIcon = MapPin;

@@ -4,12 +4,11 @@ import { Link, useNavigate } from "react-router-dom";
 import { login, type AuthCredentials } from "@/features/auth/api/authApi";
 import { useAuthStore } from "@/store/useAuthStore";
 import BRLogo from "@assets/bangaldesh-railway-logo.png";
-import { isAxiosError } from "axios"; // Import isAxiosError
-
+import { isAxiosError } from "axios"; 
 export default function UserLoginPage() {
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
-	const [error, setError] = useState<string | null>(null); // Add local error state
+	const [error, setError] = useState<string | null>(null); 
 	const navigate = useNavigate();
 	const authLogin = useAuthStore((state) => state.login);
 
@@ -35,7 +34,7 @@ export default function UserLoginPage() {
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
-		setError(null); // Clear previous errors
+		setError(null); 
 		mutation.mutate({ email, password });
 	};
 
@@ -44,7 +43,7 @@ export default function UserLoginPage() {
 			{/* Left Side (Branding) */}
 			<div className="hidden lg:flex flex-1 flex-col items-center justify-center bg-primary-800 text-white p-12">
 				<img src={BRLogo} alt="Bangladesh Railway" className="w-48 mb-6" />
-				<h1 className="text-4xl font-bold mb-4">Train Tracker</h1>
+				<h1 className="text-4xl font-bold mb-4">Train Nojor</h1>
 				<p className="text-xl text-primary-200 text-center">
 					Welcome back. Track your journey with us.
 				</p>
